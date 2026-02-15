@@ -1,0 +1,14 @@
+// @lunchtable-tcg/engine
+// Pure TypeScript trading card game engine — zero dependencies
+export * from "./types/index.js";
+export { defineCards, validateDeck } from "./cards.js";
+export type { CardLookup, DeckValidation } from "./cards.js";
+export { createEngine, createInitialState, decide, evolve, mask, legalMoves } from "./engine.js";
+export type { Engine, EngineOptions } from "./engine.js";
+export { loadCardsFromArray, loadCardsFromJSON } from "./loader.js";
+export { defineCardSet, mergeCardSets } from "./cardSet.js";
+export type { CardSet, CardSetInput } from "./cardSet.js";
+export { toConvexCardRows, fromConvexCardRow, buildCardLookup } from "./seeder.js";
+export type { ConvexCardRow } from "./seeder.js";
+export { parseCSVAbilities, parseCSVAbility } from "./effectParser.js";
+export type { CSVAbility } from "./effectParser.js";

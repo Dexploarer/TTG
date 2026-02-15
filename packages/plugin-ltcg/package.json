@@ -1,0 +1,53 @@
+{
+  "name": "@lunchtable-tcg/plugin-ltcg",
+  "version": "0.1.0",
+  "description": "ElizaOS plugin for playing LunchTable card game battles",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "packageType": "plugin",
+  "platform": "node",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "peerDependencies": {
+    "@elizaos/core": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "LTCG_API_URL": {
+        "type": "string",
+        "description": "Convex deployment URL (e.g. https://your-app.convex.site)",
+        "required": true
+      },
+      "LTCG_API_KEY": {
+        "type": "string",
+        "description": "Agent API key from /api/agent/register (starts with ltcg_)",
+        "required": true,
+        "sensitive": true
+      }
+    }
+  },
+  "elizaos": {
+    "app": true,
+    "viewer": {
+      "url": "https://lunchtable.gg",
+      "postMessageAuth": true,
+      "sandbox": "allow-scripts allow-same-origin allow-popups allow-forms"
+    }
+  }
+}

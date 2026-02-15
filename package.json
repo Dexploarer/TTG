@@ -1,0 +1,30 @@
+{
+  "name": "ltcg-v2",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.5",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n convex,web -c blue,magenta \"bun run dev:convex\" \"bun run dev:web\"",
+    "dev:convex": "convex dev",
+    "dev:web": "cd apps/web && bun run dev",
+    "test": "vitest",
+    "test:once": "vitest run"
+  },
+  "dependencies": {
+    "@lunchtable-tcg/cards": "workspace:*",
+    "@lunchtable-tcg/engine": "workspace:*",
+    "@lunchtable-tcg/match": "workspace:*",
+    "@lunchtable-tcg/story": "workspace:*",
+    "convex": "^1.31.6"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "typescript": "^5.8.0",
+    "vitest": "^4.0.18"
+  }
+}

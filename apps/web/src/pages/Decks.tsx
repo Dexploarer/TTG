@@ -1,0 +1,184 @@
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { useConvexAuth } from "convex/react";
+import { apiAny, useConvexQuery, useConvexMutation } from "@/lib/convexHelpers";
+
+type Deck = {
+  _id: string;
+  name: string;
+  deckArchetype?: string;
+  cards?: { cardDefinitionId: string; quantity: number }[];
+};
+
+const ARCHETYPE_COLORS: Record<string, string> = {
+  dropouts: "#e53e3e",
+  preps: "#3182ce",
+  geeks: "#d69e2e",
+  freaks: "#805ad5",
+  nerds: "#38a169",
+  goodies: "#a0aec0",
+};
+
+export function Decks() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useConvexAuth();
+  const userDecks = useConvexQuery(
+    apiAny.game.getUserDecks,
+    isAuthenticated ? {} : "skip",
+  ) as Deck[] | undefined;
+
+  const currentUser = useConvexQuery(
+    apiAny.auth.currentUser,
+    isAuthenticated ? {} : "skip",
+  ) as { activeDeckId?: string } | null | undefined;
+
+  const setActiveDeck = useConvexMutation(apiAny.game.setActiveDeck);
+  const createDeck = useConvexMutation(apiAny.game.createDeck);
+  const [settingActive, setSettingActive] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const handleSetActive = async (deckId: string) => {
+    setSettingActive(deckId);
+    try {
+      await setActiveDeck({ deckId });
+    } catch (err) {
+      console.error("Failed to set active deck:", err);
+    } finally {
+      setSettingActive(null);
+    }
+  };
+
+  const handleCreateDeck = async () => {
+    setCreating(true);
+    try {
+      const result = await createDeck({ name: `Deck ${(userDecks?.length ?? 0) + 1}` });
+      if (result?.deckId) navigate(`/decks/${result.deckId}`);
+    } catch (err) {
+      console.error("Failed to create deck:", err);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#fdfdfb]">
+      {/* Header */}
+      <header className="border-b-2 border-[#121212] px-6 py-5 flex items-center justify-between">
+        <div>
+          <h1
+            className="text-4xl tracking-tighter"
+            style={{ fontFamily: "Outfit, sans-serif", fontWeight: 900 }}
+          >
+            DECKS
+          </h1>
+          <p
+            className="text-sm text-[#666] mt-1"
+            style={{ fontFamily: "Special Elite, cursive" }}
+          >
+            Stack your hand before the bell rings
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleCreateDeck}
+          disabled={creating}
+          className="tcg-button-primary px-5 py-2.5 text-sm disabled:opacity-50"
+        >
+          {creating ? "Creating..." : "+ New Deck"}
+        </button>
+      </header>
+
+      {/* Deck list */}
+      <div className="p-6 max-w-3xl mx-auto">
+        {!userDecks ? (
+          <div className="flex justify-center py-20">
+            <div className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : userDecks.length === 0 ? (
+          <div className="paper-panel p-12 text-center">
+            <p className="text-[#666] font-bold uppercase text-sm">
+              No decks yet.
+            </p>
+            <p
+              className="text-xs text-[#999] mt-2"
+              style={{ fontFamily: "Special Elite, cursive" }}
+            >
+              Select a starter deck from onboarding to get started.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {userDecks.map((deck) => {
+              const isActive = currentUser?.activeDeckId === deck._id;
+              const color = ARCHETYPE_COLORS[deck.deckArchetype ?? ""] ?? "#121212";
+              const cardCount = (deck.cards ?? []).reduce(
+                (sum, c) => sum + c.quantity,
+                0,
+              );
+
+              return (
+                <div
+                  key={deck._id}
+                  className={`paper-panel p-6 transition-all ${
+                    isActive
+                      ? "ring-2 ring-[#ffcc00] shadow-[6px_6px_0px_0px_rgba(18,18,18,1)]"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2
+                          className="text-xl leading-tight"
+                          style={{ fontFamily: "Outfit, sans-serif", fontWeight: 900 }}
+                        >
+                          {deck.name}
+                        </h2>
+                        {isActive && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#ffcc00] bg-[#121212] px-1.5 py-0.5">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      {deck.deckArchetype && (
+                        <p
+                          className="text-xs uppercase tracking-wider"
+                          style={{ fontFamily: "Special Elite, cursive", color }}
+                        >
+                          {deck.deckArchetype}
+                        </p>
+                      )}
+                      <p className="text-xs text-[#999] mt-1">
+                        {cardCount} cards
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/decks/${deck._id}`)}
+                        className="tcg-button px-4 py-2 text-xs"
+                      >
+                        Edit
+                      </button>
+                      {!isActive && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetActive(deck._id)}
+                          disabled={settingActive === deck._id}
+                          className="tcg-button px-4 py-2 text-xs disabled:opacity-50"
+                        >
+                          {settingActive === deck._id ? "Setting..." : "Set Active"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
