@@ -10,6 +10,7 @@ import { decideSetSpellTrap, decideActivateSpell, decideActivateTrap, evolveSpel
 import { decideDeclareAttack, evolveCombat } from "./rules/combat.js";
 import { evolveVice } from "./rules/vice.js";
 import { drawCard } from "./rules/stateBasedActions.js";
+import { decideChainResponse } from "./rules/chain.js";
 
 export interface EngineOptions {
   config?: Partial<EngineConfig>;
@@ -132,6 +133,7 @@ export function createInitialState(
     winner: null,
     winReason: null,
     gameOver: false,
+    gameStarted: true,
   };
 }
 
@@ -445,6 +447,11 @@ export function decide(state: GameState, command: Command, seat: Seat): EngineEv
       break;
     }
 
+    case "CHAIN_RESPONSE": {
+      events.push(...decideChainResponse(state, seat, command));
+      break;
+    }
+
     // TODO: Handle other commands
     default:
       break;
@@ -613,6 +620,35 @@ export function evolve(state: GameState, events: EngineEvent[]): GameState {
         else newState.awayBoard = board;
         break;
       }
+
+      case "CHAIN_STARTED": {
+        newState.currentChain = [];
+        break;
+      }
+
+      case "CHAIN_LINK_ADDED": {
+        const { cardId, seat, effectIndex } = event;
+        newState.currentChain = [...newState.currentChain, {
+          cardId, activatingPlayer: seat, effectIndex, targets: [],
+        }];
+        newState.currentPriorityPlayer = opponentSeat(seat);
+        break;
+      }
+
+      case "CHAIN_RESOLVED": {
+        newState.currentChain = [];
+        newState.currentPriorityPlayer = null;
+        break;
+      }
+
+      case "CHAIN_PASSED": {
+        // Handled by chain resolution logic in decideChainResponse
+        break;
+      }
+
+      case "GAME_STARTED":
+        newState.gameStarted = true;
+        break;
 
       // TODO: Handle other events
       default:

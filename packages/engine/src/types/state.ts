@@ -94,6 +94,7 @@ export interface GameState {
   winner: Seat | null;
   winReason: WinReason | null;
   gameOver: boolean;
+  gameStarted: boolean;
 }
 
 export interface PlayerView {

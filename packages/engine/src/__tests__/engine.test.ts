@@ -88,6 +88,18 @@ describe("createEngine", () => {
     expect(state.gameOver).toBe(false);
   });
 
+  it("initial state has gameStarted flag", () => {
+    const engine = createEngine({
+      cardLookup,
+      hostId: "player1",
+      awayId: "player2",
+      hostDeck: createTestDeck(40),
+      awayDeck: createTestDeck(40),
+    });
+    const state = engine.getState();
+    expect(state.gameStarted).toBe(true);
+  });
+
   it("respects custom first player", () => {
     const engine = createEngine({
       cardLookup,
