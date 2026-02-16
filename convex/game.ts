@@ -9,15 +9,6 @@ import { LTCGStory } from "@lunchtable-tcg/story";
 import { createInitialState, DEFAULT_CONFIG, buildCardLookup } from "@lunchtable-tcg/engine";
 import type { Command } from "@lunchtable-tcg/engine";
 import { DECK_RECIPES, STARTER_DECKS } from "./cardData";
-import {
-  MAX_AI_TURN_ACTIONS,
-  MAX_MONSTER_ZONE_SIZE,
-  MAX_SPELL_TRAP_ZONE_SIZE,
-} from "../shared/turnConstants";
-import {
-  activateDeckForUser,
-  resolveStarterDeck,
-} from "./starterDeckHelpers";
 
 const cards = new LTCGCards(components.lunchtable_tcg_cards as any);
 const match = new LTCGMatch(components.lunchtable_tcg_match as any);
@@ -32,19 +23,76 @@ const normalizeDeckId = (deckId: string | undefined): string | null => {
   return trimmed;
 };
 
+const normalizeDeckRecordId = (deckRecord: { deckId?: string }) =>
+  normalizeDeckId(deckRecord?.deckId);
+
+const resolveDefaultStarterDeckCode = () => {
+  const configured = STARTER_DECKS.find((deck) => DECK_RECIPES[deck.deckCode]);
+  if (configured?.deckCode) return configured.deckCode;
+  const keys = Object.keys(DECK_RECIPES);
+  return keys[0] ?? null;
+};
+
+const createStarterDeckFromRecipe = async (ctx: any, userId: string) => {
+  const deckCode = resolveDefaultStarterDeckCode();
+  if (!deckCode) return null;
+
+  const recipe = DECK_RECIPES[deckCode];
+  if (!recipe) return null;
+
+  const allCards = await cards.cards.getAllCards(ctx);
+  const byName = new Map<string, any>();
+  for (const c of allCards ?? []) {
+    byName.set(c.name, c);
+  }
+
+  const resolvedCards: { cardDefinitionId: string; quantity: number }[] = [];
+  for (const entry of recipe) {
+    const cardDef = byName.get(entry.cardName);
+    if (!cardDef) return null;
+    resolvedCards.push({ cardDefinitionId: cardDef._id, quantity: entry.copies });
+  }
+
+  for (const rc of resolvedCards) {
+    await cards.cards.addCardsToInventory({
+      userId,
+      cardDefinitionId: rc.cardDefinitionId,
+      quantity: rc.quantity,
+      source: "starter_deck",
+    });
+  }
+
+  const deckName =
+    STARTER_DECKS.find((deck) => deck.deckCode === deckCode)?.name ?? deckCode;
+  const deckId = await cards.decks.createDeck(ctx, userId, deckName, {
+    deckArchetype: deckCode.replace("_starter", ""),
+  });
+  await cards.decks.saveDeck(ctx, deckId, resolvedCards);
+  await cards.decks.setActiveDeck(ctx, userId, deckId);
+  await ctx.db.patch(userId, { activeDeckId: deckId });
+  return deckId;
+};
+
 async function resolveActiveDeckIdForUser(
   ctx: any,
   user: { _id: string; activeDeckId?: string },
 ) {
   const activeDecks = await cards.decks.getUserDecks(ctx, user._id);
   const requestedDeckId = normalizeDeckId(user.activeDeckId);
-  const preferredDeck =
-    requestedDeckId && activeDecks
-      ? activeDecks.find((deck: { deckId: string }) => deck.deckId === requestedDeckId)
-      : null;
+  const preferredDeckId = requestedDeckId
+    ? normalizeDeckRecordId(
+        activeDecks
+          ? activeDecks.find((deck: { deckId: string }) => deck.deckId === requestedDeckId)
+          : null,
+      )
+    : null;
 
-  const fallbackDeckId = (preferredDeck || activeDecks?.[0])?.deckId;
-  if (!fallbackDeckId) return null;
+  const firstDeckId = activeDecks?.map(normalizeDeckRecordId).find((id) => Boolean(id)) ?? null;
+
+  const fallbackDeckId = preferredDeckId ?? firstDeckId;
+  if (!fallbackDeckId) {
+    return createStarterDeckFromRecipe(ctx, user._id);
+  }
 
   if (user.activeDeckId !== fallbackDeckId) {
     await ctx.db.patch(user._id, { activeDeckId: fallbackDeckId });
@@ -52,15 +100,28 @@ async function resolveActiveDeckIdForUser(
   return fallbackDeckId;
 }
 
-async function resolveActiveDeckForStory(ctx: any, user: { _id: string; activeDeckId?: string }) {
+export async function resolveActiveDeckForStory(
+  ctx: any,
+  user: { _id: string; activeDeckId?: string },
+) {
   const deckId = await resolveActiveDeckIdForUser(ctx, user);
-  if (!deckId) {
-    throw new Error("No active deck set");
-  }
+  if (!deckId) throw new Error("No active deck set");
 
   const deckData = await cards.decks.getDeckWithCards(ctx, deckId);
   if (!deckData) {
-    throw new Error("Deck not found");
+    await cards.decks.setActiveDeck(ctx, user._id, deckId);
+    const fallbackDeckId = await resolveActiveDeckIdForUser(ctx, {
+      ...user,
+      activeDeckId: undefined,
+    });
+    if (!fallbackDeckId) {
+      throw new Error("Active deck not found");
+    }
+    const fallbackDeckData = await cards.decks.getDeckWithCards(ctx, fallbackDeckId);
+    if (!fallbackDeckData) {
+      throw new Error("Deck not found");
+    }
+    return { deckId: fallbackDeckId, deckData: fallbackDeckData };
   }
 
   return { deckId, deckData };
@@ -156,17 +217,23 @@ export const selectStarterDeck = mutation({
     // Check if user already picked a starter deck
     const existingDecks = await cards.decks.getUserDecks(ctx, user._id);
     if (existingDecks && existingDecks.length > 0) {
-      const existingDeck = resolveStarterDeck(existingDecks, args.deckCode);
+      const requestedArchetype = args.deckCode.replace("_starter", "");
+      const existingDeck =
+        existingDecks.find((deck: any) => deck.name === args.deckCode) ??
+        existingDecks.find((deck: any) => {
+          const archetype = deck.deckArchetype;
+          return (
+            typeof archetype === "string" &&
+            archetype.toLowerCase() === requestedArchetype.toLowerCase()
+          );
+        }) ??
+        existingDecks[0];
 
       if (existingDeck?.deckId) {
-        await activateDeckForUser(
-          ctx,
-          user._id,
-          user.activeDeckId,
-          existingDeck.deckId,
-          (dbCtx, userId, deckId) =>
-            cards.decks.setActiveDeck(dbCtx, userId, deckId),
-        );
+        await cards.decks.setActiveDeck(ctx, user._id, existingDeck.deckId);
+        if (user.activeDeckId !== existingDeck.deckId) {
+          await ctx.db.patch(user._id, { activeDeckId: existingDeck.deckId });
+        }
 
         return {
           deckId: existingDeck.deckId,
@@ -221,14 +288,8 @@ export const selectStarterDeck = mutation({
     await cards.decks.saveDeck(ctx, deckId, resolvedCards);
 
     // Set as active
-    await activateDeckForUser(
-      ctx,
-      user._id,
-      user.activeDeckId,
-      deckId,
-      (dbCtx, userId, nextDeckId) =>
-        cards.decks.setActiveDeck(dbCtx, userId, nextDeckId),
-    );
+    await cards.decks.setActiveDeck(ctx, user._id, deckId);
+    await ctx.db.patch(user._id, { activeDeckId: deckId });
 
     const totalCards = resolvedCards.reduce((sum, c) => sum + c.quantity, 0);
     return { deckId, cardCount: totalCards };
@@ -464,47 +525,10 @@ export const joinMatch = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const db = ctx.db as any;
-    const matchDoc = await db.get(args.matchId);
-    if (!matchDoc) {
-      throw new Error(`Match ${args.matchId} not found`);
-    }
-
-    if ((matchDoc as any).status !== "waiting") {
-      throw new Error(`Match ${args.matchId} is not accepting players`);
-    }
-
-    const hostId = (matchDoc as any).hostId ?? "";
-    const hostDeck = (matchDoc as any).hostDeck;
-
-    if (!Array.isArray(hostDeck) || !hostDeck.length) {
-      throw new Error("Match host deck is missing");
-    }
-
-    if (!Array.isArray(args.awayDeck) || args.awayDeck.length < 30) {
-      throw new Error("Away deck must contain at least 30 cards");
-    }
-
-    await db.patch(args.matchId, {
+    await match.joinMatch(ctx, {
+      matchId: args.matchId,
       awayId: args.awayId,
       awayDeck: args.awayDeck,
-    });
-
-    const allCards = await cards.cards.getAllCards(ctx);
-    const cardLookup = buildCardLookup(allCards as any);
-    const initialState = createInitialState(
-      cardLookup,
-      DEFAULT_CONFIG,
-      hostId,
-      args.awayId,
-      hostDeck,
-      args.awayDeck,
-      "host",
-    );
-
-    await match.startMatch(ctx, {
-      matchId: args.matchId,
-      initialState: JSON.stringify(initialState),
     });
     return null;
   },
@@ -553,7 +577,7 @@ function pickAICommand(
       const level = strongest.def?.level ?? 0;
 
       // Level < 7: no tribute needed
-      if (level < 7 && board.length < MAX_MONSTER_ZONE_SIZE) {
+      if (level < 7 && board.length < 5) {
         return {
           type: "SUMMON",
           cardId: strongest.id,
@@ -604,10 +628,7 @@ function pickAICommand(
         (c: any) => c.def?.cardType === "spell" || c.def?.cardType === "trap"
       );
 
-    if (
-      spellsTrapsInHand.length > 0 &&
-      spellTrapZone.length < MAX_SPELL_TRAP_ZONE_SIZE
-    ) {
+    if (spellsTrapsInHand.length > 0 && spellTrapZone.length < 5) {
       return {
         type: "SET_SPELL_TRAP",
         cardId: spellsTrapsInHand[0].id,
@@ -679,10 +700,10 @@ function pickAICommand(
         targetId,
       };
     }
-
-    // No attacks possible, advance phase
-    return { type: "ADVANCE_PHASE" };
   }
+
+  // No attacks possible, advance phase
+  return { type: "ADVANCE_PHASE" };
 
   // Default: END_TURN
   return { type: "END_TURN" };
@@ -707,8 +728,8 @@ export const executeAITurn = internalMutation({
       cardLookup[card._id] = card;
     }
 
-    // Loop up to MAX_AI_TURN_ACTIONS actions
-    for (let i = 0; i < MAX_AI_TURN_ACTIONS; i++) {
+  // Loop up to 20 actions
+  for (let i = 0; i < 20; i++) {
       const viewJson = await match.getPlayerView(ctx, {
         matchId: args.matchId,
         seat: aiSeat,
@@ -781,13 +802,7 @@ export const getActiveMatchByHost = query({
 export const getOpenLobbyByHost = query({
   args: { hostId: v.string() },
   handler: async (ctx, args) => {
-    const db = (ctx as any).db as any;
-    return await db
-      .query("matches")
-      .withIndex("by_host", (q: any) => q.eq("hostId", args.hostId))
-      .filter((q: any) => q.eq(q.field("status"), "waiting"))
-      .order("desc")
-      .first();
+    return await match.getOpenLobbyByHost(ctx, args);
   },
 });
 
