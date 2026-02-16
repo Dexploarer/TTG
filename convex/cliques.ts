@@ -25,13 +25,107 @@ const ARCHETYPE_ALIASES: Record<string, string> = {
 };
 
 const CLIQUE_DATA = [
-  { name: "Dropout Gang", archetype: "dropouts", description: "High-risk, high-reward chaos. Live fast, break things." },
-  { name: "Honor Club", archetype: "preps", description: "Status and social warfare. Always be closing." },
-  { name: "Geek Squad", archetype: "geeks", description: "Card draw and tech control. Outsmart the opposition." },
-  { name: "Freak Show", archetype: "freaks", description: "Disruption and chaos. Make things weird." },
-  { name: "Nerd Herd", archetype: "nerds", description: "Defensive control. The best defense is a good offense." },
-  { name: "Goodie Two-Shoes", archetype: "goodies", description: "Attrition and grind. Never give an inch." },
+  {
+    name: "Dropout Gang",
+    archetype: "dropouts",
+    description: "High-risk, high-reward chaos. Live fast, break things.",
+  },
+  {
+    name: "Honor Club",
+    archetype: "preps",
+    description: "Status and social warfare. Always be closing.",
+  },
+  {
+    name: "Geek Squad",
+    archetype: "geeks",
+    description: "Card draw and tech control. Outsmart the opposition.",
+  },
+  {
+    name: "Freak Show",
+    archetype: "freaks",
+    description: "Disruption and chaos. Make things weird.",
+  },
+  {
+    name: "Nerd Herd",
+    archetype: "nerds",
+    description: "Defensive control. The best defense is a good offense.",
+  },
+  {
+    name: "Goodie Two-Shoes",
+    archetype: "goodies",
+    description: "Attrition and grind. Never give an inch.",
+  },
 ];
+
+const CLAQUE_MEMBER_ROLE = v.union(
+  v.literal("member"),
+  v.literal("leader"),
+  v.literal("founder"),
+);
+const vClique = v.object({
+  _id: v.id("cliques"),
+  _creationTime: v.number(),
+  name: v.string(),
+  archetype: v.string(),
+  description: v.string(),
+  iconUrl: v.optional(v.string()),
+  memberCount: v.number(),
+  totalWins: v.number(),
+  createdAt: v.number(),
+});
+const vCliqueMember = v.object({
+  _id: v.id("users"),
+  _creationTime: v.number(),
+  username: v.optional(v.string()),
+  name: v.optional(v.string()),
+  cliqueRole: v.optional(CLAQUE_MEMBER_ROLE),
+  createdAt: v.number(),
+});
+const vLeaderboardEntry = v.object({
+  _id: v.id("cliques"),
+  _creationTime: v.number(),
+  name: v.string(),
+  archetype: v.string(),
+  description: v.string(),
+  iconUrl: v.optional(v.string()),
+  memberCount: v.number(),
+  totalWins: v.number(),
+  createdAt: v.number(),
+  rank: v.number(),
+  isMyClique: v.boolean(),
+});
+const vCliqueDashboard = v.object({
+  myArchetype: v.union(v.string(), v.null()),
+  myClique: v.union(vClique, v.null()),
+  myCliqueMembers: v.array(vCliqueMember),
+  myCliqueMemberOverflow: v.number(),
+  totalPlayers: v.number(),
+  leaderboard: v.array(vLeaderboardEntry),
+});
+const vCliqueAssignmentAssigned = v.object({
+  status: v.literal("assigned"),
+  clique: vClique,
+  archetype: v.string(),
+  reason: v.string(),
+});
+const vCliqueAssignmentAlreadyAssigned = v.object({
+  status: v.literal("already_assigned"),
+  clique: vClique,
+  archetype: v.string(),
+  reason: v.string(),
+});
+const vCliqueAssignmentMissingStarterDeck = v.object({
+  status: v.literal("missing_starter_deck"),
+  clique: v.null(),
+  archetype: v.null(),
+  reason: v.string(),
+});
+const vCliqueAssignmentMissingClique = v.object({
+  status: v.literal("missing_clique"),
+  clique: v.null(),
+  archetype: v.string(),
+  reason: v.string(),
+});
 
 const normalizeDeckId = (deckId: string | undefined): string | null => {
   if (!deckId) return null;
@@ -48,21 +142,35 @@ const normalizeArchetype = (value: string | undefined): string | null => {
   return ARCHETYPE_ALIASES[normalized] ?? null;
 };
 
-const resolveDeckArchetype = (deck: any): string | null => {
-  const direct = normalizeArchetype(
-    typeof deck?.deckArchetype === "string" ? deck.deckArchetype : undefined,
-  );
+type UserDeckLike = {
+  deckId?: string | null;
+  deckArchetype?: string | null;
+  deckCode?: string | null;
+  name?: string | null;
+};
+
+const normalizeCardText = (value: unknown): string | null => {
+  return typeof value === "string" ? value.trim() : null;
+};
+
+const resolveDeckArchetype = (deck: unknown): string | null => {
+  const deckRecord = deck as Partial<UserDeckLike>;
+
+  const direct = normalizeArchetype(normalizeCardText(deckRecord.deckArchetype) ?? undefined);
   if (direct) return direct;
 
   const byDeckCode =
-    typeof deck?.deckCode === "string" && deck.deckCode.endsWith("_starter")
-      ? normalizeArchetype(deck.deckCode.replace("_starter", ""))
+    normalizeCardText(deckRecord.deckCode)?.endsWith("_starter")
+      ? normalizeArchetype(
+          normalizeCardText(deckRecord.deckCode)?.replace("_starter", ""),
+        ) ?? null
       : null;
   if (byDeckCode) return byDeckCode;
 
   const byName =
-    typeof deck?.name === "string" && deck.name.endsWith("_starter")
-      ? normalizeArchetype(deck.name.replace("_starter", ""))
+    normalizeCardText(deckRecord.name)?.endsWith("_starter")
+      ? normalizeArchetype(normalizeCardText(deckRecord.name)?.replace("_starter", "") ?? "") ??
+        null
       : null;
   return byName;
 };
@@ -76,16 +184,16 @@ const sortCliques = <T extends { memberCount: number; totalWins: number; name: s
     return a.name.localeCompare(b.name);
   });
 
-async function resolveUserStarterArchetype(
+const resolveUserStarterArchetype = async (
   ctx: any,
   user: { _id: string; activeDeckId?: string },
-) {
+): Promise<string | null> => {
   const decks = await cards.decks.getUserDecks(ctx, user._id);
-  if (!decks?.length) return null;
+  if (!Array.isArray(decks) || decks.length === 0) return null;
 
   const normalizedActiveDeckId = normalizeDeckId(user.activeDeckId);
   const activeDeck = normalizedActiveDeckId
-    ? decks.find((deck: any) => normalizeDeckId(deck?.deckId) === normalizedActiveDeckId)
+    ? decks.find((deck: UserDeckLike) => normalizeDeckId(deck.deckId) === normalizedActiveDeckId)
     : null;
 
   if (activeDeck) {
@@ -99,13 +207,13 @@ async function resolveUserStarterArchetype(
   }
 
   return null;
-}
+};
 
-async function assignUserToCliqueByArchetype(
+const assignUserToCliqueByArchetype = async (
   ctx: any,
-  userId: any,
+  userId: string,
   rawArchetype: string,
-) {
+) => {
   const archetype = normalizeArchetype(rawArchetype);
   if (!archetype) return null;
 
@@ -144,10 +252,11 @@ async function assignUserToCliqueByArchetype(
   });
 
   return clique;
-}
+};
 
 export const getAllCliques = query({
   args: {},
+  returns: v.array(vClique),
   handler: async (ctx) => {
     const cliques = await ctx.db.query("cliques").collect();
     return sortCliques(cliques);
@@ -156,6 +265,7 @@ export const getAllCliques = query({
 
 export const getCliqueByArchetype = query({
   args: { archetype: v.string() },
+  returns: v.union(vClique, v.null()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("cliques")
@@ -166,6 +276,7 @@ export const getCliqueByArchetype = query({
 
 export const getMyClique = query({
   args: {},
+  returns: v.union(vClique, v.null()),
   handler: async (ctx) => {
     const user = await requireUser(ctx);
     if (!user.cliqueId) return null;
@@ -175,6 +286,7 @@ export const getMyClique = query({
 
 export const getCliqueDashboard = query({
   args: {},
+  returns: vCliqueDashboard,
   handler: async (ctx) => {
     const user = await requireUser(ctx);
     const cliques = sortCliques(await ctx.db.query("cliques").collect());
@@ -189,12 +301,11 @@ export const getCliqueDashboard = query({
           .collect()
       : [];
 
-    members.sort((a, b) =>
-      (a.username ?? a.name ?? "").localeCompare(b.username ?? b.name ?? ""),
-    );
+    members.sort((a, b) => (a.username ?? a.name ?? "").localeCompare(b.username ?? b.name ?? ""));
 
     const rosterPreview = members.slice(0, 12).map((member) => ({
       _id: member._id,
+      _creationTime: member._creationTime,
       username: member.username,
       name: member.name,
       cliqueRole: member.cliqueRole,
@@ -218,6 +329,7 @@ export const getCliqueDashboard = query({
 
 export const getCliqueMembers = query({
   args: { cliqueId: v.id("cliques") },
+  returns: v.array(vCliqueMember),
   handler: async (ctx, args) => {
     const members = await ctx.db
       .query("users")
@@ -225,6 +337,7 @@ export const getCliqueMembers = query({
       .collect();
     return members.map((m) => ({
       _id: m._id,
+      _creationTime: m._creationTime,
       username: m.username,
       name: m.name,
       cliqueRole: m.cliqueRole,
@@ -235,6 +348,7 @@ export const getCliqueMembers = query({
 
 export const joinClique = mutation({
   args: { cliqueId: v.id("cliques") },
+  returns: v.union(vClique, v.null()),
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
 
@@ -258,32 +372,31 @@ export const leaveClique = mutation({
   args: {},
   handler: async (ctx) => {
     const user = await requireUser(ctx);
-    
+
     if (!user.cliqueId) {
       throw new Error("Not in a clique");
     }
-    
+
     const clique = await ctx.db.get(user.cliqueId);
     if (!clique) {
       throw new Error("Clique not found");
     }
-    
+
     // Leaders/founders can't leave if they're the only one
     if (user.cliqueRole === "founder" || user.cliqueRole === "leader") {
       if (clique.memberCount <= 1) {
-        // Delete the clique entirely
         await ctx.db.delete(user.cliqueId);
       } else {
         throw new Error("Transfer leadership before leaving");
       }
     }
-    
+
     // Update user
     await ctx.db.patch(user._id, {
       cliqueId: undefined,
       cliqueRole: undefined,
     });
-    
+
     // Update member count
     await ctx.db.patch(user.cliqueId, {
       memberCount: Math.max(0, clique.memberCount - 1),
@@ -297,7 +410,7 @@ export const seedCliques = internalMutation({
     // Check if already seeded
     const existing = await ctx.db.query("cliques").first();
     if (existing) return;
-    
+
     for (const data of CLIQUE_DATA) {
       await ctx.db.insert("cliques", {
         ...data,
@@ -315,26 +428,60 @@ export const autoAssignUserToCliqueFromArchetype = internalMutation({
     userId: v.id("users"),
     archetype: v.string(),
   },
+  returns: v.union(
+    vClique,
+    v.object({
+      status: v.union(v.literal("already_assigned"), v.literal("missing_clique")),
+      reason: v.string(),
+    }),
+  ),
   handler: async (ctx, args) => {
-    const clique = await assignUserToCliqueByArchetype(
-      ctx,
-      args.userId,
-      args.archetype,
-    );
+    const existingUser = await ctx.db.get(args.userId);
+    if (!existingUser) {
+      return { status: "missing_clique", reason: "User not found" };
+    }
 
-    return clique?._id ?? null;
+    if (existingUser.cliqueId) {
+      const existingClique = await ctx.db.get(existingUser.cliqueId);
+      if (existingClique?.archetype === args.archetype) {
+        return {
+          status: "already_assigned",
+          reason: "Clique already assigned",
+        };
+      }
+    }
+
+    const clique = await assignUserToCliqueByArchetype(ctx, args.userId, args.archetype);
+    if (!clique) {
+      return {
+        status: "missing_clique",
+        reason: `No clique found for archetype ${args.archetype}`,
+      };
+    }
+    return clique;
   },
 });
 
 export const ensureMyCliqueAssignment = mutation({
   args: {},
+  returns: v.union(
+    vCliqueAssignmentAssigned,
+    vCliqueAssignmentAlreadyAssigned,
+    vCliqueAssignmentMissingStarterDeck,
+    vCliqueAssignmentMissingClique,
+  ),
   handler: async (ctx) => {
     const user = await requireUser(ctx);
 
     if (user.cliqueId) {
       const myClique = await ctx.db.get(user.cliqueId);
       if (myClique) {
-        return { status: "already_assigned", clique: myClique };
+        return {
+          status: "already_assigned",
+          clique: myClique,
+          archetype: myClique.archetype,
+          reason: "Clique already assigned",
+        };
       }
 
       await ctx.db.patch(user._id, {
@@ -345,14 +492,29 @@ export const ensureMyCliqueAssignment = mutation({
 
     const archetype = await resolveUserStarterArchetype(ctx, user);
     if (!archetype) {
-      return { status: "missing_starter_deck" };
+      return {
+        status: "missing_starter_deck",
+        clique: null,
+        archetype: null,
+        reason: "Starter deck missing or unable to determine archetype",
+      };
     }
 
     const clique = await assignUserToCliqueByArchetype(ctx, user._id, archetype);
     if (!clique) {
-      return { status: "missing_clique", archetype };
+      return {
+        status: "missing_clique",
+        clique: null,
+        archetype,
+        reason: `No clique exists for archetype ${archetype}`,
+      };
     }
 
-    return { status: "assigned", clique };
+    return {
+      status: "assigned",
+      clique,
+      archetype,
+      reason: "Assigned from starter deck archetype",
+    };
   },
 });
