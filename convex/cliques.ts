@@ -6,7 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { requireUser } from "./auth";
 import { LTCGCards } from "@lunchtable-tcg/cards";
 
-const cards = new LTCGCards(components.lunchtable_tcg_cards as any);
+const cards = new LTCGCards(components.lunchtable_tcg_cards);
 
 const RESERVED_DECK_IDS = new Set(["undefined", "null", "skip"]);
 const ARCHETYPE_ALIASES: Record<string, string> = {
@@ -185,7 +185,7 @@ const normalizeCardText = (value: unknown): string | null => {
   return typeof value === "string" ? value.trim() : null;
 };
 
-const resolveDeckArchetype = (deck: unknown): string | null => {
+const resolveDeckArchetype = (deck: UserDeckLike): string | null => {
   const deckRecord: Partial<UserDeckLike> = deck;
 
   const direct = normalizeArchetype(normalizeCardText(deckRecord.deckArchetype) ?? undefined);
@@ -251,7 +251,7 @@ const assignUserToCliqueByArchetype = async (
 
   const clique = await ctx.db
     .query("cliques")
-    .withIndex("by_archetype", (q: any) => q.eq("archetype", archetype))
+    .withIndex("by_archetype", (q) => q.eq("archetype", archetype))
     .first();
   if (!clique) return null;
 
@@ -289,10 +289,9 @@ const assignUserToCliqueByArchetype = async (
 const mapAssignmentResult = (
   status: AssignedCliqueResult["status"],
   data: Omit<AssignedCliqueResult, "status" | "clique"> & { clique: CliqueDoc | null },
-): AssignedCliqueResult => ({
-  status,
-  ...data,
-}) as AssignedCliqueResult;
+): AssignedCliqueResult => {
+  return { status, ...data };
+};
 
 export const getAllCliques = query({
   args: {},
