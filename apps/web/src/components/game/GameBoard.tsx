@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useGameState } from "./hooks/useGameState";
 import { useGameActions } from "./hooks/useGameActions";
+import { useAudio } from "@/components/audio/AudioProvider";
 import { LPBar } from "./LPBar";
 import { PhaseBar } from "./PhaseBar";
 import { FieldRow } from "./FieldRow";
@@ -20,9 +21,11 @@ interface GameBoardProps {
 
 export function GameBoard({ matchId }: GameBoardProps) {
   const navigate = useNavigate();
+  const { playSfx } = useAudio();
   const { meta, view, cardLookup, isMyTurn, phase, gameOver, validActions, isLoading, notFound } =
     useGameState(matchId);
   const actions = useGameActions(matchId);
+  const endSfxPlayedRef = useRef(false);
 
   // Selection state
   const [selectedHandCard, setSelectedHandCard] = useState<string | null>(null);
@@ -187,8 +190,23 @@ export function GameBoard({ matchId }: GameBoardProps) {
   const playerLP = view.lifePoints ?? 0;
   const opponentLP = view.opponentLifePoints ?? 0;
   const winner = meta?.winner;
+  const ended = gameOver || meta?.status === "ended";
 
-  if (gameOver || meta?.status === "ended") {
+  useEffect(() => {
+    if (!ended) {
+      endSfxPlayedRef.current = false;
+      return;
+    }
+    if (endSfxPlayedRef.current) return;
+
+    if (winner === "host") playSfx("victory");
+    else if (winner === "away") playSfx("defeat");
+    else playSfx("draw");
+
+    endSfxPlayedRef.current = true;
+  }, [ended, winner, playSfx]);
+
+  if (ended) {
     const result = winner === "host" ? "win" : winner === "away" ? "loss" : "draw";
     return (
       <AnimatePresence>

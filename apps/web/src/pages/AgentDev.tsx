@@ -196,6 +196,10 @@ export function AgentDev() {
 
   const convexSiteUrl = (import.meta.env.VITE_CONVEX_URL ?? "")
     .replace(".convex.cloud", ".convex.site");
+  const soundtrackApiUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/api/soundtrack`
+      : "/api/soundtrack";
 
   const handleRegisterAgent = async () => {
     const trimmed = agentName.trim();
@@ -443,6 +447,19 @@ export function AgentDev() {
                   </code>
                 </div>
 
+                {/* Soundtrack API URL */}
+                <div>
+                  <label
+                    className="block text-xs font-black uppercase tracking-wider text-[#121212]/60 mb-1.5"
+                    style={{ fontFamily: "Outfit, sans-serif" }}
+                  >
+                    LTCG_SOUNDTRACK_API_URL
+                  </label>
+                  <code className="block px-4 py-2.5 bg-[#121212] text-[#ffcc00] text-xs font-mono border-2 border-[#121212] break-all select-all">
+                    {soundtrackApiUrl}
+                  </code>
+                </div>
+
                 {/* Install command */}
                 <div className="pt-2">
                   <p
@@ -468,7 +485,8 @@ export function AgentDev() {
                   </p>
                   <code className="block px-4 py-3 bg-[#121212] text-green-400 text-xs font-mono border-2 border-[#121212] whitespace-pre">
 {`LTCG_API_URL=${convexSiteUrl}
-LTCG_API_KEY=${registeredKey}`}
+LTCG_API_KEY=${registeredKey}
+LTCG_SOUNDTRACK_API_URL=${soundtrackApiUrl}`}
                   </code>
                 </div>
               </div>

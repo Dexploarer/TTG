@@ -1,9 +1,34 @@
 import { useState, useCallback } from "react";
 import * as Sentry from "@sentry/react";
 import { apiAny, useConvexMutation } from "@/lib/convexHelpers";
+import { useAudio } from "@/components/audio/AudioProvider";
+
+function sfxForCommand(command: Record<string, unknown>): string | null {
+  const type = typeof command.type === "string" ? command.type : "";
+  switch (type) {
+    case "SUMMON":
+    case "SET_MONSTER":
+    case "FLIP_SUMMON":
+      return "summon";
+    case "SET_SPELL_TRAP":
+    case "ACTIVATE_SPELL":
+    case "ACTIVATE_TRAP":
+      return "spell";
+    case "DECLARE_ATTACK":
+      return "attack";
+    case "ADVANCE_PHASE":
+    case "END_TURN":
+      return "turn";
+    case "SURRENDER":
+      return "defeat";
+    default:
+      return null;
+  }
+}
 
 export function useGameActions(matchId: string | undefined) {
   const submitAction = useConvexMutation(apiAny.game.submitAction);
+  const { playSfx } = useAudio();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -18,14 +43,17 @@ export function useGameActions(matchId: string | undefined) {
           command: JSON.stringify(command),
           seat: "host",
         });
+        const sfx = sfxForCommand(command);
+        if (sfx) playSfx(sfx);
       } catch (err: any) {
         Sentry.captureException(err);
         setError(err.message ?? "Action failed.");
+        playSfx("error");
       } finally {
         setSubmitting(false);
       }
     },
-    [matchId, submitAction, submitting],
+    [matchId, submitAction, submitting, playSfx],
   );
 
   return {

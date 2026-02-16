@@ -14,6 +14,7 @@ import { App } from "./App";
 import "./globals.css";
 import { PostHogProvider } from "posthog-js/react";
 import posthog from "./lib/posthog";
+import { AudioProvider } from "@/components/audio/AudioProvider";
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -68,7 +69,9 @@ createRoot(document.getElementById("root")!).render(
             client={convex}
             useAuth={usePrivyAuthForConvex}
           >
-            <App />
+            <AudioProvider>
+              <App />
+            </AudioProvider>
           </ConvexProviderWithAuth>
         </PrivyAuthProvider>
       </PostHogProvider>

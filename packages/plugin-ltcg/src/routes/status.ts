@@ -23,11 +23,15 @@ export const statusRoute: Route = {
   handler: async (
     _req: RouteRequest,
     res: RouteResponse,
-    _runtime: IAgentRuntime,
+    runtime: IAgentRuntime,
   ) => {
     try {
       const client = getClient();
       const matchId = client.currentMatchId;
+      const soundtrackEndpoint =
+        runtime.getSetting("LTCG_SOUNDTRACK_API_URL") ||
+        process.env.LTCG_SOUNDTRACK_API_URL ||
+        null;
 
       // Build status payload
       const status: Record<string, unknown> = {
@@ -37,6 +41,10 @@ export const statusRoute: Route = {
         hasActiveMatch: client.hasActiveMatch,
         matchId: matchId ?? null,
         timestamp: Date.now(),
+        soundtrack: {
+          configured: Boolean(soundtrackEndpoint),
+          endpoint: soundtrackEndpoint,
+        },
       };
 
       // If there's an active match, include its state

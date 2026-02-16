@@ -15,6 +15,7 @@
  *   PLAY_LTCG_STORY    — Play through a full story stage (start → loop → complete)
  *   CHECK_LTCG_STATUS  — Check current match state
  *   SURRENDER_LTCG     — Forfeit the current match
+ *   GET_LTCG_SOUNDTRACK — Fetch soundtrack catalog for agent streaming
  *
  * Provider:
  *   ltcg-game-state — Injects board state into agent context
@@ -34,6 +35,7 @@ import { playTurnAction } from "./actions/playTurn.js";
 import { getStatusAction } from "./actions/getStatus.js";
 import { surrenderAction } from "./actions/surrender.js";
 import { playStoryAction } from "./actions/playStory.js";
+import { getSoundtrackAction } from "./actions/getSoundtrack.js";
 import { statusRoute } from "./routes/status.js";
 import { ltcgEvents } from "./events.js";
 import type { Plugin, IAgentRuntime } from "./types.js";
@@ -46,6 +48,7 @@ const plugin: Plugin = {
   config: {
     LTCG_API_URL: process.env.LTCG_API_URL,
     LTCG_API_KEY: process.env.LTCG_API_KEY,
+    LTCG_SOUNDTRACK_API_URL: process.env.LTCG_SOUNDTRACK_API_URL,
   },
 
   async init(config: Record<string, string>, _runtime: IAgentRuntime) {
@@ -83,6 +86,7 @@ const plugin: Plugin = {
     playStoryAction,
     getStatusAction,
     surrenderAction,
+    getSoundtrackAction,
   ],
 
   routes: [statusRoute],
@@ -100,6 +104,7 @@ export { playTurnAction } from "./actions/playTurn.js";
 export { getStatusAction } from "./actions/getStatus.js";
 export { surrenderAction } from "./actions/surrender.js";
 export { playStoryAction } from "./actions/playStory.js";
+export { getSoundtrackAction } from "./actions/getSoundtrack.js";
 export { statusRoute } from "./routes/status.js";
 export { ltcgEvents } from "./events.js";
 export type {

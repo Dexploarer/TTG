@@ -58,6 +58,18 @@ LTCG-v2/
 └── docs/                      # Architecture + agent docs
 ```
 
+## Audio Soundtrack
+
+- Manifest file: `apps/web/public/soundtrack.in`
+- Agent-readable endpoint: `GET /api/soundtrack` (optional `?context=play`)
+- Plugin env (optional): `LTCG_SOUNDTRACK_API_URL=https://your-app.com/api/soundtrack`
+
+`soundtrack.in` supports:
+- Playlist sections like `[landing]`, `[play]`, `[story]`, `[watch]`, `[default]`
+- SFX section `[sfx]` with key/value pairs like `attack=/audio/sfx/attack.wav`
+
+Landing context is shuffled automatically; other contexts loop in order.
+
 ## Game
 
 A vice-themed trading card game with 6 archetypes:

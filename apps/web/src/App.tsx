@@ -1,11 +1,13 @@
-import { BrowserRouter, Routes, Route } from "react-router";
-import { lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router";
+import { lazy, Suspense, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { Toaster } from "sonner";
 import { useIframeMode } from "@/hooks/useIframeMode";
 import { useTelegramAuth } from "@/hooks/auth/useTelegramAuth";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AgentSpectatorView } from "@/components/game/AgentSpectatorView";
+import { AudioContextGate, AudioControlsDock, useAudio } from "@/components/audio/AudioProvider";
+import { getAudioContextFromPath } from "@/lib/audio/routeContext";
 import { Home } from "@/pages/Home";
 
 const Onboarding = lazy(() => import("@/pages/Onboarding").then(m => ({ default: m.Onboarding })));
@@ -61,6 +63,17 @@ function PageLoader() {
   );
 }
 
+function RouteAudioContextSync() {
+  const location = useLocation();
+  const { setContextKey } = useAudio();
+
+  useEffect(() => {
+    setContextKey(getAudioContextFromPath(location.pathname));
+  }, [location.pathname, setContextKey]);
+
+  return null;
+}
+
 function Guarded({ children }: { children: React.ReactNode }) {
   return (
     <Sentry.ErrorBoundary fallback={PageErrorFallback}>
@@ -91,13 +104,16 @@ export function App() {
   if (isApiKey && authToken) {
     return (
       <Sentry.ErrorBoundary fallback={PageErrorFallback}>
+        <AudioContextGate context="play" />
         <AgentSpectatorView apiKey={authToken} apiUrl={CONVEX_SITE_URL} />
+        <AudioControlsDock />
       </Sentry.ErrorBoundary>
     );
   }
 
   return (
     <BrowserRouter>
+      <RouteAudioContextSync />
       <SentryRoutes>
         <Route path="/" element={<Public><Home /></Public>} />
         <Route path="/privacy" element={<Public><Privacy /></Public>} />
@@ -117,6 +133,7 @@ export function App() {
         <Route path="/cliques" element={<Guarded><Cliques /></Guarded>} />
         <Route path="/play/:matchId" element={<Guarded><Play /></Guarded>} />
       </SentryRoutes>
+      <AudioControlsDock />
       <Toaster
         position={isEmbedded ? "bottom-center" : "bottom-right"}
         toastOptions={{

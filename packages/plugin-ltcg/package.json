@@ -43,6 +43,11 @@
         "description": "Agent API key from /api/agent/register (starts with ltcg_)",
         "required": true,
         "sensitive": true
+      },
+      "LTCG_SOUNDTRACK_API_URL": {
+        "type": "string",
+        "description": "Optional web endpoint that serves soundtrack JSON (e.g. https://app.example.com/api/soundtrack)",
+        "required": false
       }
     }
   },
