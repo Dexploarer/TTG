@@ -1,6 +1,12 @@
 import { motion } from "framer-motion";
 import { useStory, type Stage } from "./StoryProvider";
 
+import {
+  STAGE_1_1_1,
+  STAGE_1_1_2,
+  STAGE_1_1_3,
+} from "@/lib/blobUrls";
+
 const DIFFICULTY_COLORS: Record<string, string> = {
   easy: "#38a169",
   medium: "#d69e2e",
@@ -8,28 +14,60 @@ const DIFFICULTY_COLORS: Record<string, string> = {
   boss: "#805ad5",
 };
 
+/**
+ * Map "Act-Chapter-Stage" to banner image.
+ * e.g. "1-1-1" = Act 1, Chapter 1, Stage 1
+ */
+const STAGE_BANNERS: Record<string, string> = {
+  "1-1-1": STAGE_1_1_1,
+  "1-1-2": STAGE_1_1_2,
+  "1-1-3": STAGE_1_1_3,
+};
+
 export function StagePanel({
   stage,
   isStarting,
   onFight,
+  chapterId,
 }: {
   stage: Stage;
   isStarting: boolean;
   onFight: () => void;
+  chapterId?: string;
 }) {
-  const { isStageComplete, getStageStars } = useStory();
+  const { isStageComplete, getStageStars, chapters } = useStory();
   const completed = isStageComplete(stage._id);
   const stars = getStageStars(stage._id);
   const diffColor = DIFFICULTY_COLORS[stage.difficulty ?? "easy"] ?? "#666";
 
+  // Resolve banner image
+  const chapter = chapters?.find((c) => c._id === chapterId);
+  const bannerKey = chapter
+    ? `${chapter.actNumber}-${chapter.chapterNumber}-${stage.stageNumber}`
+    : null;
+  const bannerImage = bannerKey ? STAGE_BANNERS[bannerKey] : null;
+
   return (
     <motion.div
-      className={`paper-panel p-5 md:p-6 transition-all ${completed ? "opacity-70" : ""}`}
+      className={`paper-panel p-0 overflow-hidden transition-all ${completed ? "opacity-70" : ""}`}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: completed ? 0.7 : 1, x: 0 }}
       whileHover={{ x: 4 }}
     >
-      <div className="flex items-start justify-between gap-4">
+      {/* Banner Image */}
+      {bannerImage && (
+        <div className="h-24 w-full relative border-b-2 border-[#121212]">
+          <img
+            src={bannerImage}
+            alt={stage.name}
+            className="w-full h-full object-cover grayscale-[0.3]"
+            draggable={false}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+        </div>
+      )}
+
+      <div className="p-5 md:p-6 flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1.5">
             <span
@@ -105,7 +143,7 @@ export function StagePanel({
           type="button"
           onClick={onFight}
           disabled={isStarting}
-          className="tcg-button-primary px-5 py-2.5 text-sm shrink-0 disabled:opacity-50"
+          className="tcg-button-primary px-5 py-2.5 text-sm shrink-0 disabled:opacity-50 mt-2"
         >
           {isStarting ? "..." : completed ? "Replay" : "Fight"}
         </button>

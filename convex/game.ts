@@ -221,6 +221,14 @@ export const startStoryBattle = mutation({
   },
   handler: async (ctx, args) => {
     const user = await requireUser(ctx);
+    const stageNum = args.stageNumber ?? 1;
+
+    // Resolve the stage to get its _id for progress tracking
+    const stages = await story.stages.getStages(ctx, args.chapterId);
+    const stage = (stages as any[])?.find(
+      (s: any) => s.stageNumber === stageNum,
+    );
+    if (!stage) throw new Error(`Stage ${stageNum} not found in chapter`);
 
     if (!user.activeDeckId) throw new Error("No active deck set");
     const deckData = await cards.decks.getDeckWithCards(ctx, user.activeDeckId);
@@ -263,7 +271,16 @@ export const startStoryBattle = mutation({
       initialState: JSON.stringify(initialState),
     });
 
-    return { matchId, stageNumber: args.stageNumber ?? 1 };
+    // Link match to story context in host-layer table
+    await ctx.db.insert("storyMatches", {
+      matchId,
+      userId: user._id,
+      chapterId: args.chapterId,
+      stageNumber: stageNum,
+      stageId: stage._id,
+    });
+
+    return { matchId, chapterId: args.chapterId, stageNumber: stageNum };
   },
 });
 
@@ -376,4 +393,160 @@ export const getMatchMeta = query({
 export const getRecentEvents = query({
   args: { matchId: v.string(), sinceVersion: v.number() },
   handler: async (ctx, args) => match.getRecentEvents(ctx, args),
+});
+
+export const getActiveMatchByHost = query({
+  args: { hostId: v.string() },
+  handler: async (ctx, args) => match.getActiveMatchByHost(ctx, args),
+});
+
+// ── Story Match Context ─────────────────────────────────────────────
+
+export const getStoryMatchContext = query({
+  args: { matchId: v.string() },
+  handler: async (ctx, args) => {
+    const doc = await ctx.db
+      .query("storyMatches")
+      .withIndex("by_matchId", (q: any) => q.eq("matchId", args.matchId))
+      .first();
+    if (!doc) return null;
+
+    // Load the stage data for dialogue and reward info
+    const stages = await story.stages.getStages(ctx, doc.chapterId);
+    const stage = (stages as any[])?.find(
+      (s: any) => s.stageNumber === doc.stageNumber,
+    );
+
+    return {
+      matchId: doc.matchId,
+      chapterId: doc.chapterId,
+      stageNumber: doc.stageNumber,
+      stageId: doc.stageId,
+      outcome: doc.outcome ?? null,
+      starsEarned: doc.starsEarned ?? null,
+      rewardsGold: stage?.rewardGold ?? 0,
+      rewardsXp: stage?.rewardXp ?? 0,
+      firstClearBonus: stage?.firstClearBonus ?? 0,
+      opponentName: stage?.opponentName ?? "Opponent",
+      postMatchWinDialogue: stage?.postMatchWinDialogue ?? [],
+      postMatchLoseDialogue: stage?.postMatchLoseDialogue ?? [],
+    };
+  },
+});
+
+// ── Complete Story Stage ────────────────────────────────────────────
+
+function calculateStars(won: boolean, finalLP: number, maxLP: number): number {
+  if (!won) return 0;
+  const ratio = maxLP > 0 ? finalLP / maxLP : 0;
+  if (ratio >= 0.75) return 3;
+  if (ratio >= 0.5) return 2;
+  return 1;
+}
+
+export const completeStoryStage = mutation({
+  args: { matchId: v.string() },
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx);
+
+    // Look up story context
+    const storyMatch = await ctx.db
+      .query("storyMatches")
+      .withIndex("by_matchId", (q: any) => q.eq("matchId", args.matchId))
+      .first();
+    if (!storyMatch) throw new Error("Not a story match");
+    if (storyMatch.userId !== user._id) throw new Error("Not your match");
+
+    // Already completed — return cached result
+    if (storyMatch.outcome) {
+      return {
+        outcome: storyMatch.outcome,
+        starsEarned: storyMatch.starsEarned ?? 0,
+        rewards: {
+          gold: storyMatch.rewardsGold ?? 0,
+          xp: storyMatch.rewardsXp ?? 0,
+          firstClearBonus: storyMatch.firstClearBonus ?? 0,
+        },
+      };
+    }
+
+    // Verify match is ended
+    const meta = await match.getMatchMeta(ctx, { matchId: args.matchId });
+    if ((meta as any)?.status !== "ended") {
+      throw new Error("Match is not ended yet");
+    }
+
+    const won = (meta as any)?.winner === "host";
+    const outcome = won ? "won" : "lost";
+
+    // Get final LP for star calculation
+    const viewJson = await match.getPlayerView(ctx, {
+      matchId: args.matchId,
+      seat: "host",
+    });
+    let finalLP = 0;
+    const maxLP = 8000;
+    if (viewJson) {
+      const view = JSON.parse(viewJson);
+      finalLP = view?.players?.host?.lifePoints ?? 0;
+    }
+
+    const starsEarned = calculateStars(won, finalLP, maxLP);
+
+    // Look up stage for rewards
+    const stages = await story.stages.getStages(ctx, storyMatch.chapterId);
+    const stage = (stages as any[])?.find(
+      (s: any) => s.stageNumber === storyMatch.stageNumber,
+    );
+
+    const rewardGold = won ? (stage?.rewardGold ?? 0) : 0;
+    const rewardXp = won ? (stage?.rewardXp ?? 0) : 0;
+
+    // Check if this is first clear for bonus
+    const existingProgress = await story.progress.getStageProgress(
+      ctx,
+      user._id,
+      storyMatch.stageId,
+    );
+    const isFirstClear =
+      won && !(existingProgress as any[])?.some(
+        (p: any) => p.stageId === storyMatch.stageId && p.timesCompleted > 0,
+      );
+    const firstClearBonus = isFirstClear ? (stage?.firstClearBonus ?? 0) : 0;
+
+    // Record stage progress in story component
+    if (won) {
+      await story.progress.upsertStageProgress(ctx, {
+        userId: user._id,
+        stageId: storyMatch.stageId,
+        chapterId: storyMatch.chapterId,
+        stageNumber: storyMatch.stageNumber,
+        status: starsEarned >= 3 ? "starred" : "completed",
+        starsEarned,
+        timesCompleted: 1,
+        firstClearClaimed: isFirstClear,
+        lastCompletedAt: Date.now(),
+      });
+    }
+
+    // Update host-layer record with results
+    await ctx.db.patch(storyMatch._id, {
+      outcome: outcome as "won" | "lost",
+      starsEarned,
+      rewardsGold: rewardGold,
+      rewardsXp: rewardXp,
+      firstClearBonus,
+      completedAt: Date.now(),
+    });
+
+    return {
+      outcome,
+      starsEarned,
+      rewards: {
+        gold: rewardGold,
+        xp: rewardXp,
+        firstClearBonus,
+      },
+    };
+  },
 });

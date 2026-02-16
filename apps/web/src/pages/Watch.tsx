@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as Sentry from "@sentry/react";
 import { TrayNav } from "@/components/layout/TrayNav";
 import {
   getLiveStreams,
@@ -6,6 +7,7 @@ import {
   streamUrl,
   type LiveStreamer,
 } from "@/lib/retake";
+import { LANDING_BG, MENU_TEXTURE, MILUNCHLADY_PFP } from "@/lib/blobUrls";
 
 const LUNCHTABLE_AGENT = "milunchlady";
 const RETAKE_CONFIG = getRetakeConfig();
@@ -26,7 +28,8 @@ export function Watch() {
           setStreams(live);
           setError(false);
         }
-      } catch {
+      } catch (err) {
+        Sentry.captureException(err);
         if (mountedRef.current) setError(true);
       } finally {
         if (mountedRef.current) setLoading(false);
@@ -53,7 +56,7 @@ export function Watch() {
   return (
     <div
       className="min-h-screen relative bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/lunchtable/landing-bg.jpg')" }}
+      style={{ backgroundImage: `url('${LANDING_BG}')` }}
     >
       <div className="absolute inset-0 bg-black/75" />
 
@@ -79,7 +82,7 @@ export function Watch() {
           <div
             className="relative overflow-hidden"
             style={{
-              backgroundImage: "url('/lunchtable/menu-texture.png')",
+              backgroundImage: `url('${MENU_TEXTURE}')`,
               backgroundSize: "512px",
             }}
           >
@@ -89,7 +92,7 @@ export function Watch() {
               {/* Agent avatar */}
               <div className="shrink-0 w-28 h-28 md:w-36 md:h-36 border-4 border-[#121212] bg-[#121212]/10 overflow-hidden">
                 <img
-                  src="/lunchtable/milunchladypfp.png"
+                  src={MILUNCHLADY_PFP}
                   alt={LUNCHTABLE_AGENT}
                   className="w-full h-full object-cover"
                   draggable={false}
@@ -221,7 +224,7 @@ export function Watch() {
                 rel="noopener noreferrer"
                 className="group relative block overflow-hidden transition-all hover:-translate-y-1 hover:shadow-[0_0_30px_rgba(255,204,0,0.15)]"
                 style={{
-                  backgroundImage: "url('/lunchtable/menu-texture.png')",
+                  backgroundImage: `url('${MENU_TEXTURE}')`,
                   backgroundSize: "512px",
                 }}
               >

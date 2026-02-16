@@ -1,9 +1,11 @@
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useConvexAuth } from "convex/react";
+import * as Sentry from "@sentry/react";
 import { apiAny, useConvexMutation, useConvexQuery } from "@/lib/convexHelpers";
 import { useUserSync } from "@/hooks/auth/useUserSync";
 import { consumeRedirect } from "@/hooks/auth/usePostLoginRedirect";
+import { LANDING_BG } from "@/lib/blobUrls";
 
 // ── Types ─────────────────────────────────────────────────────────
 
@@ -77,7 +79,7 @@ export function Onboarding() {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-cover bg-center relative"
-      style={{ backgroundImage: "url('/lunchtable/landing-bg.jpg')" }}
+      style={{ backgroundImage: `url('${LANDING_BG}')` }}
     >
       <div className="absolute inset-0 bg-black/60" />
 
@@ -146,6 +148,7 @@ function UsernameStep({
       await setUsernameMutation({ username: trimmed });
       onComplete();
     } catch (err: any) {
+      Sentry.captureException(err);
       setError(err.message ?? "Failed to set username.");
     } finally {
       setSubmitting(false);
@@ -222,6 +225,7 @@ function DeckSelectionStep({
       await selectDeckMutation({ deckCode: selected });
       onComplete();
     } catch (err: any) {
+      Sentry.captureException(err);
       setError(err.message ?? "Failed to select deck.");
     } finally {
       setSubmitting(false);

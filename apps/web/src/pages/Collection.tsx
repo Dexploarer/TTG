@@ -112,7 +112,7 @@ export function Collection() {
       </div>
 
       {/* Card Grid */}
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {!allCards ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full animate-spin" />
@@ -152,11 +152,10 @@ function FilterPill({
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border-2 border-[#121212] transition-all ${
-        active
+      className={`px-3 py-1 text-xs font-bold uppercase tracking-wider border-2 border-[#121212] transition-all ${active
           ? "bg-[#121212] text-white shadow-[2px_2px_0px_0px_rgba(18,18,18,1)]"
           : "bg-white text-[#121212] hover:bg-[#f0f0f0]"
-      }`}
+        }`}
       style={{
         fontFamily: "Outfit, sans-serif",
         borderColor: active && color ? color : "#121212",
@@ -174,9 +173,8 @@ function CardTile({ card, owned }: { card: CardDef; owned: boolean }) {
 
   return (
     <div
-      className={`paper-panel p-4 transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] ${
-        !owned ? "opacity-40 grayscale" : ""
-      }`}
+      className={`paper-panel p-4 transition-all hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(18,18,18,1)] ${!owned ? "opacity-40 grayscale" : ""
+        }`}
     >
       {/* Type badge */}
       <div className="flex items-center justify-between mb-2">

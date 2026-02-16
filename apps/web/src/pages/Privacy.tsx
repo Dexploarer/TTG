@@ -1,18 +1,19 @@
 import { TrayNav } from "@/components/layout/TrayNav";
+import { PRIVACY_BG, MENU_TEXTURE } from "@/lib/blobUrls";
 
 export function Privacy() {
   return (
     <div
       className="min-h-screen bg-cover bg-center bg-no-repeat relative"
-      style={{ backgroundImage: "url('/lunchtable/privacy-bg.png')" }}
+      style={{ backgroundImage: `url('${PRIVACY_BG}')` }}
     >
       <div className="absolute inset-0 bg-black/60" />
 
       <div className="relative z-10 max-w-2xl mx-auto px-6 py-12 pb-20">
         <div
-          className="relative p-8 md:p-12"
+          className="relative p-6 md:p-12"
           style={{
-            backgroundImage: "url('/lunchtable/menu-texture.png')",
+            backgroundImage: `url('${MENU_TEXTURE}')`,
             backgroundSize: "512px",
             backgroundRepeat: "repeat",
           }}

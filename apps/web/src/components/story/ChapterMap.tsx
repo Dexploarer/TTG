@@ -2,6 +2,47 @@ import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { useStory } from "./StoryProvider";
 
+import {
+  STORY_BG,
+  HOMEWORK_LABEL,
+  STORY_1_1,
+  STORY_1_2,
+  STORY_1_3,
+  STORY_1_4,
+  STORY_2_1,
+  STORY_2_2,
+  STORY_2_3,
+  STORY_2_4,
+  STORY_3_1,
+  STORY_3_2,
+  STORY_3_3,
+  STORY_3_4,
+  STORY_4_1,
+  STORY_4_2,
+  STORY_4_3,
+  STORY_4_4,
+} from "@/lib/blobUrls";
+
+/** Map chapter index (1-based) → image */
+const CHAPTER_IMAGES: Record<number, string> = {
+  1: STORY_1_1,
+  2: STORY_1_2,
+  3: STORY_1_3,
+  4: STORY_1_4,
+  5: STORY_2_1,
+  6: STORY_2_2,
+  7: STORY_2_3,
+  8: STORY_2_4,
+  9: STORY_3_1,
+  10: STORY_3_2,
+  11: STORY_3_3,
+  12: STORY_3_4,
+  13: STORY_4_1,
+  14: STORY_4_2,
+  15: STORY_4_3,
+  16: STORY_4_4,
+};
+
 const PANEL_LAYOUTS = [
   "col-span-2 row-span-2",
   "col-span-1 row-span-1",
@@ -33,38 +74,37 @@ export function ChapterMap() {
   const { chapters, isLoading, isChapterComplete, totalStars } = useStory();
 
   return (
-    <div className="min-h-screen bg-[#fdfdfb] pb-24">
-      <header className="border-b-2 border-[#121212] px-6 py-5">
-        <div className="flex items-baseline justify-between">
-          <div>
-            <h1
-              className="text-4xl tracking-tighter"
-              style={{ fontFamily: "Outfit, sans-serif", fontWeight: 900 }}
-            >
-              STORY MODE
-            </h1>
-            <p
-              className="text-sm text-[#666] mt-1"
-              style={{ fontFamily: "Special Elite, cursive" }}
-            >
-              Fight your way through the halls
-            </p>
-          </div>
+    <div
+      className="min-h-screen pb-24 relative bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url('${STORY_BG}')` }}
+    >
+      <div className="absolute inset-0 bg-[#fdfdfb]/85" />
+      <header className="relative z-10 border-b-2 border-[#121212] px-6 py-5">
+        <div className="text-center">
+          <img
+            src={HOMEWORK_LABEL}
+            alt="HOMEWORK"
+            className="h-28 md:h-36 mx-auto"
+            draggable={false}
+          />
+          <p
+            className="text-sm text-[#666] mt-1"
+            style={{ fontFamily: "Special Elite, cursive" }}
+          >
+            Fight your way through the halls
+          </p>
           {totalStars > 0 && (
-            <div className="text-right">
-              <p
-                className="text-2xl"
-                style={{ fontFamily: "Outfit, sans-serif", fontWeight: 900, color: "#ffcc00" }}
-              >
-                &#9733; {totalStars}
-              </p>
-              <p className="text-[10px] text-[#999] uppercase tracking-wider">total stars</p>
-            </div>
+            <p
+              className="text-lg mt-1"
+              style={{ fontFamily: "Outfit, sans-serif", fontWeight: 900, color: "#ffcc00" }}
+            >
+              &#9733; {totalStars}
+            </p>
           )}
         </div>
       </header>
 
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="relative z-10 p-6 max-w-4xl mx-auto">
         {isLoading ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full animate-spin" />
@@ -90,6 +130,8 @@ export function ChapterMap() {
           >
             {chapters.map((chapter, i) => {
               const completed = isChapterComplete(chapter._id);
+              const prevCompleted = i === 0 || isChapterComplete(chapters[i - 1]._id);
+              const locked = !completed && !prevCompleted;
               const layout = PANEL_LAYOUTS[i % PANEL_LAYOUTS.length];
               const rotation = ((i * 7 + 3) % 5) - 2;
 
@@ -97,23 +139,43 @@ export function ChapterMap() {
                 <motion.button
                   key={chapter._id}
                   type="button"
-                  onClick={() => navigate(`/story/${chapter._id}`)}
-                  className={`comic-panel ${layout} relative overflow-hidden text-left cursor-pointer group`}
+                  onClick={() => !locked && navigate(`/story/${chapter._id}`)}
+                  className={`comic-panel ${layout} relative overflow-hidden text-left group ${
+                    locked ? "cursor-not-allowed" : "cursor-pointer"
+                  }`}
                   style={{ rotate: `${rotation}deg` }}
                   variants={panelVariant}
-                  whileHover={{ scale: 1.03, rotate: 0, zIndex: 10 }}
-                  whileTap={{ scale: 0.97 }}
+                  whileHover={locked ? {} : { scale: 1.03, rotate: 0, zIndex: 10 }}
+                  whileTap={locked ? {} : { scale: 0.97 }}
                 >
-                  {chapter.imageUrl && (
+                  {(chapter.imageUrl || CHAPTER_IMAGES[i + 1]) && (
                     <img
-                      src={chapter.imageUrl}
+                      src={chapter.imageUrl || CHAPTER_IMAGES[i + 1]}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover opacity-20 group-hover:opacity-30 transition-opacity"
+                      className={`absolute inset-0 w-full h-full object-cover transition-opacity ${
+                        locked
+                          ? "opacity-10 grayscale"
+                          : "opacity-20 group-hover:opacity-30"
+                      }`}
                       draggable={false}
                     />
                   )}
 
-                  <div className="relative z-10 flex flex-col justify-between h-full p-4">
+                  {/* Locked overlay */}
+                  {locked && (
+                    <div className="absolute inset-0 bg-[#121212]/60 z-10 flex items-center justify-center">
+                      <span
+                        className="comic-stamp text-white/70 border-white/40 text-xs scale-110"
+                        style={{ transform: "rotate(-6deg) scale(1.1)" }}
+                      >
+                        LOCKED
+                      </span>
+                    </div>
+                  )}
+
+                  <div className={`relative z-20 flex flex-col justify-between h-full p-4 ${
+                    locked ? "opacity-40" : ""
+                  }`}>
                     <div>
                       <span
                         className="text-[10px] text-[#999] uppercase tracking-wider block"
@@ -122,7 +184,7 @@ export function ChapterMap() {
                         Chapter {chapter.chapterNumber ?? i + 1}
                       </span>
                       <h2
-                        className="text-lg md:text-2xl leading-tight mt-0.5"
+                        className={`text-lg md:text-2xl leading-tight mt-0.5 ${locked ? "text-[#666]" : ""}`}
                         style={{ fontFamily: "Outfit, sans-serif", fontWeight: 900 }}
                       >
                         {chapter.title}
@@ -141,6 +203,10 @@ export function ChapterMap() {
                       {completed ? (
                         <span className="comic-stamp text-[#38a169] border-[#38a169]">
                           CLEARED
+                        </span>
+                      ) : locked ? (
+                        <span className="text-[10px] text-[#999] font-bold uppercase tracking-wider">
+                          &#x1F512;
                         </span>
                       ) : (
                         <span className="text-[10px] text-[#ffcc00] font-bold uppercase tracking-wider animate-pulse">

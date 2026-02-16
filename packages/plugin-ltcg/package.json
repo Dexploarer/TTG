@@ -1,12 +1,14 @@
 {
   "name": "@lunchtable-tcg/plugin-ltcg",
   "version": "0.1.0",
-  "description": "ElizaOS plugin for playing LunchTable card game battles",
+  "description": "ElizaOS plugin — enables AI agents to play LunchTable TCG story battles",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "packageType": "plugin",
   "platform": "node",
+  "keywords": ["plugin", "elizaos", "game", "tcg"],
+  "homepage": "http://localhost:3334",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -18,12 +20,14 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@elizaos/core": "^1.0.0"
+    "@elizaos/core": ">=1.0.0"
   },
   "devDependencies": {
+    "@types/node": "^25.2.3",
     "typescript": "^5.0.0"
   },
   "agentConfig": {
@@ -31,7 +35,7 @@
     "pluginParameters": {
       "LTCG_API_URL": {
         "type": "string",
-        "description": "Convex deployment URL (e.g. https://your-app.convex.site)",
+        "description": "Convex site URL (e.g. https://scintillating-mongoose-458.convex.site)",
         "required": true
       },
       "LTCG_API_KEY": {
@@ -43,11 +47,25 @@
     }
   },
   "elizaos": {
-    "app": true,
-    "viewer": {
-      "url": "https://lunchtable.gg",
-      "postMessageAuth": true,
-      "sandbox": "allow-scripts allow-same-origin allow-popups allow-forms"
+    "kind": "app",
+    "app": {
+      "displayName": "LunchTable: School of Hard Knocks",
+      "category": "game",
+      "launchType": "connect",
+      "launchUrl": "http://localhost:3334",
+      "icon": null,
+      "capabilities": ["observe", "control", "story-mode", "pvp"],
+      "minPlayers": 1,
+      "maxPlayers": 2,
+      "viewer": {
+        "url": "http://localhost:3334",
+        "embedParams": {
+          "embedded": "true",
+          "mode": "play"
+        },
+        "postMessageAuth": true,
+        "sandbox": "allow-scripts allow-same-origin allow-popups allow-forms"
+      }
     }
   }
 }

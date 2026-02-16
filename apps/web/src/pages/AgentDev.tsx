@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useConvexAuth } from "convex/react";
+import * as Sentry from "@sentry/react";
 import { TrayNav } from "@/components/layout/TrayNav";
 import { apiAny, useConvexMutation, useConvexQuery } from "@/lib/convexHelpers";
+import { LANDING_BG, MENU_TEXTURE, MILUNCHLADY_PFP_AGENT, OPENCLAWD_PFP } from "@/lib/blobUrls";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -26,6 +28,7 @@ const PLATFORM_INFO = {
     defaultApi: "http://localhost:2138/api",
     docs: "https://github.com/milady-ai",
     features: ["ElizaOS Runtime", "Local-first", "Plugin System", "WebSocket Events"],
+    image: MILUNCHLADY_PFP_AGENT,
   },
   openclawd: {
     name: "OpenClawd",
@@ -33,6 +36,7 @@ const PLATFORM_INFO = {
     defaultApi: "http://localhost:8080/api",
     docs: "https://openclaw.ai",
     features: ["Containerized", "100+ AgentSkills", "Multi-platform", "Self-hosted"],
+    image: OPENCLAWD_PFP,
   },
 } as const;
 
@@ -69,25 +73,38 @@ function PlatformCard({
   return (
     <button
       onClick={onSelect}
-      className={`relative text-left p-5 md:p-6 transition-all ${
+      className={`relative text-left p-5 md:p-6 transition-all overflow-hidden ${
         selected
           ? "bg-[#121212] text-white -translate-y-1 shadow-[6px_6px_0px_rgba(255,204,0,0.4)]"
           : "bg-white/90 text-[#121212] hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_rgba(0,0,0,0.2)]"
       }`}
       style={{ border: selected ? "3px solid #ffcc00" : "3px solid #121212" }}
     >
-      <h3
-        className="text-lg md:text-xl font-black uppercase tracking-tight mb-1"
-        style={{ fontFamily: "Outfit, sans-serif" }}
-      >
-        {info.name}
-      </h3>
-      <p
-        className={`text-xs mb-3 ${selected ? "text-white/60" : "text-[#121212]/50"}`}
-        style={{ fontFamily: "Special Elite, cursive" }}
-      >
-        {info.tagline}
-      </p>
+      {/* Platform image */}
+      <div className="flex items-center gap-4 mb-3">
+        <img
+          src={info.image}
+          alt={info.name}
+          className={`w-16 h-16 md:w-20 md:h-20 object-contain shrink-0 drop-shadow-lg ${
+            selected ? "brightness-110" : "brightness-95"
+          }`}
+          draggable={false}
+        />
+        <div>
+          <h3
+            className="text-lg md:text-xl font-black uppercase tracking-tight mb-0.5"
+            style={{ fontFamily: "Outfit, sans-serif" }}
+          >
+            {info.name}
+          </h3>
+          <p
+            className={`text-xs ${selected ? "text-white/60" : "text-[#121212]/50"}`}
+            style={{ fontFamily: "Special Elite, cursive" }}
+          >
+            {info.tagline}
+          </p>
+        </div>
+      </div>
       <div className="flex flex-wrap gap-1.5">
         {info.features.map((f) => (
           <span
@@ -128,7 +145,7 @@ function SectionCard({
     <div
       className="relative p-5"
       style={{
-        backgroundImage: "url('/lunchtable/menu-texture.png')",
+        backgroundImage: `url('${MENU_TEXTURE}')`,
         backgroundSize: "512px",
       }}
     >
@@ -199,6 +216,7 @@ export function AgentDev() {
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setRegisteredKey(data.apiKey);
     } catch (err: any) {
+      Sentry.captureException(err);
       setRegisterError(err.message ?? "Registration failed.");
     } finally {
       setRegistering(false);
@@ -235,6 +253,7 @@ export function AgentDev() {
       setConnStatus("connected");
       setConnMsg("Agent is online");
     } catch (err) {
+      Sentry.captureException(err);
       setConnStatus("error");
       setConnMsg(
         err instanceof TypeError
@@ -253,6 +272,7 @@ export function AgentDev() {
       await selectStarterDeckMutation({ deckCode: selectedDeck });
       setDeckAssigned(true);
     } catch (err: any) {
+      Sentry.captureException(err);
       setDeckError(err.message ?? "Failed to assign deck.");
     } finally {
       setDeckAssigning(false);
@@ -264,7 +284,7 @@ export function AgentDev() {
   return (
     <div
       className="min-h-screen relative bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/lunchtable/landing-bg.jpg')" }}
+      style={{ backgroundImage: `url('${LANDING_BG}')` }}
     >
       <div className="absolute inset-0 bg-black/80" />
 
@@ -320,7 +340,7 @@ export function AgentDev() {
             <div
               className="relative p-6"
               style={{
-                backgroundImage: "url('/lunchtable/menu-texture.png')",
+                backgroundImage: `url('${MENU_TEXTURE}')`,
                 backgroundSize: "512px",
               }}
             >
@@ -375,7 +395,7 @@ export function AgentDev() {
             <div
               className="relative p-6"
               style={{
-                backgroundImage: "url('/lunchtable/menu-texture.png')",
+                backgroundImage: `url('${MENU_TEXTURE}')`,
                 backgroundSize: "512px",
               }}
             >
@@ -469,7 +489,7 @@ LTCG_API_KEY=${registeredKey}`}
             <div
               className="relative p-6"
               style={{
-                backgroundImage: "url('/lunchtable/menu-texture.png')",
+                backgroundImage: `url('${MENU_TEXTURE}')`,
                 backgroundSize: "512px",
               }}
             >

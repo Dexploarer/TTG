@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { usePrivy, useLogout } from "@privy-io/react-auth";
 import { storeRedirect } from "@/hooks/auth/usePostLoginRedirect";
+import { LOGO, DECO_PILLS, DECO_SHIELD, MENU_TEXTURE } from "@/lib/blobUrls";
 
 const textLinks: Array<
   { label: string; path: string; auth: boolean } | { label: string; href: string }
@@ -61,7 +62,7 @@ export function TrayNav({ invert = true }: { invert?: boolean }) {
           className="transition-transform duration-200 hover:scale-110 active:scale-95"
         >
           <img
-            src="/lunchtable/logo.png"
+            src={LOGO}
             alt="Menu"
             className={`h-10 w-10 drop-shadow-[2px_2px_0px_rgba(0,0,0,0.8)] ${invert ? "invert" : ""}`}
             draggable={false}
@@ -90,7 +91,7 @@ export function TrayNav({ invert = true }: { invert?: boolean }) {
             background: "transparent",
             clipPath:
               "polygon(0% 100%, 2% 40%, 5% 80%, 8% 30%, 11% 70%, 14% 20%, 17% 60%, 20% 35%, 23% 75%, 26% 25%, 29% 65%, 32% 40%, 35% 80%, 38% 30%, 41% 70%, 44% 20%, 47% 55%, 50% 35%, 53% 75%, 56% 25%, 59% 60%, 62% 40%, 65% 80%, 68% 30%, 71% 65%, 74% 20%, 77% 55%, 80% 35%, 83% 75%, 86% 25%, 89% 60%, 92% 40%, 95% 70%, 98% 30%, 100% 100%)",
-            backgroundImage: "url('/lunchtable/menu-texture.png')",
+            backgroundImage: `url('${MENU_TEXTURE}')`,
             backgroundSize: "100% 100%",
           }}
         />
@@ -99,7 +100,7 @@ export function TrayNav({ invert = true }: { invert?: boolean }) {
         <div
           className="relative px-6 pt-2 pb-8"
           style={{
-            backgroundImage: "url('/lunchtable/menu-texture.png')",
+            backgroundImage: `url('${MENU_TEXTURE}')`,
             backgroundSize: "cover",
             backgroundPosition: "center top",
           }}
@@ -121,7 +122,7 @@ export function TrayNav({ invert = true }: { invert?: boolean }) {
               title="Home"
             >
               <img
-                src="/lunchtable/logo.png"
+                src={LOGO}
                 alt="Home"
                 className="h-20 md:h-16 w-auto brightness-110 contrast-110 hover:brightness-125 transition-all drop-shadow-[0_2px_12px_rgba(255,255,255,0.5)]"
                 draggable={false}
@@ -136,7 +137,7 @@ export function TrayNav({ invert = true }: { invert?: boolean }) {
               title="$LUNCH"
             >
               <img
-                src="/lunchtable/deco-pills.png"
+                src={DECO_PILLS}
                 alt="$LUNCH"
                 className="h-20 md:h-16 w-auto brightness-110 contrast-110 hover:brightness-125 transition-all drop-shadow-[0_2px_12px_rgba(255,255,255,0.5)]"
                 draggable={false}
@@ -151,7 +152,7 @@ export function TrayNav({ invert = true }: { invert?: boolean }) {
               title="Legal"
             >
               <img
-                src="/lunchtable/deco-shield.png"
+                src={DECO_SHIELD}
                 alt="Privacy & Legal"
                 className="h-20 md:h-16 w-auto brightness-110 contrast-110 hover:brightness-125 transition-all drop-shadow-[0_2px_12px_rgba(255,255,255,0.5)]"
                 draggable={false}

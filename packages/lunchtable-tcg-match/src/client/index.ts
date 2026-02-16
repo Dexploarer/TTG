@@ -123,6 +123,15 @@ export class LTCGMatch {
     });
   }
 
+  async getActiveMatchByHost(
+    ctx: RunQueryCtx,
+    args: { hostId: string }
+  ) {
+    return await ctx.runQuery(this.component.queries.getActiveMatchByHost, {
+      hostId: args.hostId,
+    });
+  }
+
   async getOpenPrompt(
     ctx: RunQueryCtx,
     args: {

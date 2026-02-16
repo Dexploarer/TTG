@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useConvexAuth } from "convex/react";
+import * as Sentry from "@sentry/react";
 import { apiAny, useConvexQuery, useConvexMutation } from "@/lib/convexHelpers";
 
 type CardDef = {
@@ -142,7 +143,7 @@ export function DeckBuilder() {
       await saveDeck({ deckId, cards: deckCards });
       setSaved(true);
     } catch (err) {
-      console.error("Save failed:", err);
+      Sentry.captureException(err);
     } finally {
       setSaving(false);
     }

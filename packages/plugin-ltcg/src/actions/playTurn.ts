@@ -1,218 +1,119 @@
 /**
- * Action: Auto-play one full turn in a LunchTable match.
+ * Action: PLAY_LTCG_TURN
  *
- * Logic:
- * 1. Get current game state
- * 2. In main phase: summon the highest-ATK monster from hand
- * 3. Advance to combat
- * 4. In combat: attack with each monster on field
- * 5. End turn
- *
- * Each step catches errors silently — invalid commands are skipped.
+ * Auto-plays one full turn: summon, spells, combat, end turn.
+ * Uses shared turn logic from turnLogic.ts.
  */
 
-import * as api from "../api.js";
+import { getClient } from "../client.js";
+import { playOneTurn, gameOverSummary } from "./turnLogic.js";
+import type {
+  Action,
+  IAgentRuntime,
+  Memory,
+  State,
+  HandlerCallback,
+} from "../types.js";
 
-export const playTurnAction = {
+export const playTurnAction: Action = {
   name: "PLAY_LTCG_TURN",
   similes: ["TAKE_TURN", "PLAY_CARDS", "MAKE_MOVE"],
   description:
-    "Play a full turn in the active LunchTable match — summon, attack, and end turn",
+    "Play a full turn in the active LunchTable match — summon monsters, activate spells, attack, and end turn. Requires an active match.",
 
-  validate: async () => {
-    return api.isConfigured() && !!api.getCurrentMatch();
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
+    try {
+      return getClient().hasActiveMatch;
+    } catch {
+      return false;
+    }
   },
 
   handler: async (
-    _runtime: any,
-    message: any,
-    _state: any,
-    _options: any,
-    callback?: (response: any) => Promise<void>,
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+    _options?: Record<string, unknown>,
+    callback?: HandlerCallback,
   ) => {
-    const matchId = api.getCurrentMatch();
+    const client = getClient();
+    const matchId = client.currentMatchId;
+
     if (!matchId) {
       const text = "No active match. Use START_LTCG_BATTLE first.";
-      if (callback) await callback({ text, source: message.content?.source });
-      return { text, success: false };
+      if (callback) await callback({ text });
+      return { success: false, error: "No active match" };
     }
 
     try {
-      const result = await autoPlayTurn(matchId);
+      let view = await client.getView(matchId);
 
-      if (callback) {
-        await callback({
-          text: result.summary,
-          actions: ["PLAY_LTCG_TURN"],
-          source: message.content?.source,
-        });
+      if (view.gameOver) {
+        client.setMatch(null);
+        const text = gameOverSummary(view);
+        if (callback) await callback({ text, action: "PLAY_LTCG_TURN" });
+        return { success: true, data: { gameOver: true } };
       }
 
-      // If game is over, clear the match
-      if (result.gameOver) {
-        api.setCurrentMatch(null);
+      if (view.currentTurnPlayer !== "host") {
+        const text = "Waiting — it's the opponent's turn.";
+        if (callback) await callback({ text });
+        return { success: true, data: { gameOver: false } };
       }
+
+      const actions = await playOneTurn(matchId, view);
+
+      // Check game over after turn
+      view = await client.getView(matchId);
+      if (view.gameOver) {
+        client.setMatch(null);
+        actions.push(gameOverSummary(view));
+      }
+
+      const summary = actions.length > 0 ? actions.join(". ") + "." : "No actions taken.";
+      if (callback) await callback({ text: summary, action: "PLAY_LTCG_TURN" });
 
       return {
-        text: result.summary,
-        values: { ltcgMatchId: result.gameOver ? null : matchId },
         success: true,
+        data: {
+          gameOver: view.gameOver,
+          matchId: view.gameOver ? null : matchId,
+        },
       };
-    } catch (err: any) {
-      const text = `Turn failed: ${err.message}`;
-      if (callback) await callback({ text, source: message.content?.source });
-      return { text, success: false, error: err };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (callback) await callback({ text: `Turn failed: ${msg}` });
+      return { success: false, error: msg };
     }
   },
 
   examples: [
     [
+      { name: "{{user1}}", content: { text: "Play your turn" } },
       {
-        name: "{{userName}}",
-        content: { text: "Play your turn" },
+        name: "{{agent}}",
+        content: {
+          text: "Playing my turn now!",
+          action: "PLAY_LTCG_TURN",
+        },
+      },
+    ],
+    [
+      {
+        name: "{{user1}}",
+        content: { text: "Take your next turn in the card game" },
       },
       {
-        name: "{{agentName}}",
+        name: "{{agent}}",
         content: {
-          text: "Playing my turn now...",
-          actions: ["PLAY_LTCG_TURN"],
+          text: "Let me make my moves!",
+          action: "PLAY_LTCG_TURN",
         },
       },
     ],
   ],
 };
-
-// ── Auto-play logic ──────────────────────────────────────────────
-
-async function autoPlayTurn(matchId: string) {
-  const actions: string[] = [];
-
-  let raw = await api.getView(matchId);
-  let view = typeof raw === "string" ? JSON.parse(raw) : raw;
-
-  if (view?.gameOver) {
-    return { summary: "Game is already over.", gameOver: true };
-  }
-
-  if (view?.currentTurnPlayer !== "host") {
-    return {
-      summary: "Waiting — it's the opponent's turn.",
-      gameOver: false,
-    };
-  }
-
-  // Main phase: summon strongest monster from hand
-  if (view?.phase === "main" || view?.phase === "main2") {
-    const hand = (view.hand ?? []).filter(
-      (c: any) => c.cardType === "stereotype" && c.attack !== undefined,
-    );
-
-    // Sort by ATK descending
-    hand.sort((a: any, b: any) => (b.attack ?? 0) - (a.attack ?? 0));
-
-    for (const card of hand) {
-      try {
-        await api.submitAction(matchId, {
-          type: "SUMMON",
-          cardInstanceId: card.instanceId,
-          position: "attack",
-        });
-        actions.push(`Summoned ${card.name} (ATK ${card.attack})`);
-        break; // One normal summon per turn
-      } catch {
-        // Can't summon (field full, level too high, etc.) — try next
-      }
-    }
-
-    // Try to activate spells from hand
-    const spells = (view.hand ?? []).filter(
-      (c: any) => c.cardType === "spell",
-    );
-    for (const spell of spells) {
-      try {
-        await api.submitAction(matchId, {
-          type: "ACTIVATE_SPELL",
-          cardInstanceId: spell.instanceId,
-        });
-        actions.push(`Activated ${spell.name}`);
-        break; // One spell per turn for simplicity
-      } catch {
-        // Can't activate — skip
-      }
-    }
-  }
-
-  // Advance to combat
-  try {
-    await api.submitAction(matchId, { type: "ADVANCE_PHASE" });
-    actions.push("Advanced phase");
-  } catch {
-    // Already past main or can't advance
-  }
-
-  // Refresh state after phase change
-  raw = await api.getView(matchId);
-  view = typeof raw === "string" ? JSON.parse(raw) : raw;
-
-  // Combat: attack with each monster
-  if (view?.phase === "combat") {
-    const myMonsters = (view.playerField?.monsters ?? []).filter(Boolean);
-    const oppMonsters = (view.opponentField?.monsters ?? []).filter(Boolean);
-
-    for (const mon of myMonsters) {
-      try {
-        if (oppMonsters.length > 0 && !oppMonsters[0].faceDown) {
-          // Attack the first opponent monster
-          await api.submitAction(matchId, {
-            type: "DECLARE_ATTACK",
-            attackerInstanceId: mon.instanceId,
-            targetInstanceId: oppMonsters[0].instanceId,
-          });
-          actions.push(`${mon.name} attacks ${oppMonsters[0].name}`);
-        } else {
-          // Direct attack
-          await api.submitAction(matchId, {
-            type: "DECLARE_ATTACK",
-            attackerInstanceId: mon.instanceId,
-          });
-          actions.push(`${mon.name} attacks directly!`);
-        }
-      } catch {
-        // Can't attack (already attacked, etc.)
-      }
-    }
-  }
-
-  // End turn
-  try {
-    await api.submitAction(matchId, { type: "END_TURN" });
-    actions.push("Ended turn");
-  } catch {
-    // Try advancing phase first
-    try {
-      await api.submitAction(matchId, { type: "ADVANCE_PHASE" });
-      await api.submitAction(matchId, { type: "END_TURN" });
-      actions.push("Ended turn");
-    } catch {
-      // Stuck — report what we did
-    }
-  }
-
-  // Check if game ended
-  raw = await api.getView(matchId);
-  view = typeof raw === "string" ? JSON.parse(raw) : raw;
-  const gameOver = !!view?.gameOver;
-
-  if (gameOver) {
-    const myLP = view?.players?.host?.lifePoints ?? 0;
-    const oppLP = view?.players?.away?.lifePoints ?? 0;
-    const won = myLP > oppLP;
-    actions.push(won ? "VICTORY!" : "DEFEAT.");
-  }
-
-  return {
-    summary:
-      actions.length > 0 ? actions.join(". ") + "." : "No actions taken.",
-    gameOver,
-  };
-}

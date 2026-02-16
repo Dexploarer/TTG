@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
+import * as Sentry from "@sentry/react";
 import { apiAny, useConvexQuery, useConvexMutation } from "@/lib/convexHelpers";
 import { VictoryScreen } from "@/components/story";
 
@@ -10,6 +11,12 @@ type MatchMeta = {
   mode: string;
   isAIOpponent?: boolean;
   winner?: string;
+};
+
+type StoryCompletion = {
+  outcome: string;
+  starsEarned: number;
+  rewards: { gold: number; xp: number; firstClearBonus: number };
 };
 
 export function Play() {
@@ -26,14 +33,45 @@ export function Play() {
     matchId ? { matchId, seat: "host" as const } : "skip",
   ) as string | null | undefined;
 
+  // Story context — only loads for story mode matches
+  const isStory = meta?.mode === "story";
+  const storyCtx = useConvexQuery(
+    apiAny.game.getStoryMatchContext,
+    isStory && matchId ? { matchId } : "skip",
+  ) as any | null | undefined;
+
   const submitAction = useConvexMutation(apiAny.game.submitAction);
+  const completeStage = useConvexMutation(apiAny.game.completeStoryStage);
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [completion, setCompletion] = useState<StoryCompletion | null>(null);
+  const completingRef = useRef(false);
 
   const view = viewJson ? tryParse(viewJson) : null;
   const gameOver = view?.gameOver;
   const isMyTurn = view?.currentTurnPlayer === "host";
   const currentPhase = view?.phase;
+
+  // Auto-complete story stage when match ends
+  useEffect(() => {
+    if (!isStory || !matchId || !gameOver || completion || completingRef.current) return;
+    if (meta?.status !== "ended") return;
+
+    completingRef.current = true;
+    completeStage({ matchId })
+      .then((result: StoryCompletion) => setCompletion(result))
+      .catch((err: any) => {
+        Sentry.captureException(err);
+        // Fallback — still show result
+        const won = meta?.winner === "host";
+        setCompletion({
+          outcome: won ? "won" : "lost",
+          starsEarned: won ? 1 : 0,
+          rewards: { gold: 0, xp: 0, firstClearBonus: 0 },
+        });
+      });
+  }, [isStory, matchId, gameOver, meta?.status, meta?.winner, completion, completeStage]);
 
   const handleAction = useCallback(
     async (command: Record<string, unknown>) => {
@@ -48,6 +86,7 @@ export function Play() {
           seat: "host" as const,
         });
       } catch (err: any) {
+        Sentry.captureException(err);
         setError(err.message ?? "Action failed.");
       } finally {
         setSubmitting(false);
@@ -64,20 +103,26 @@ export function Play() {
   if (meta === undefined || viewJson === undefined) return <Loading />;
   if (meta === null) return <CenterMessage>Match not found.</CenterMessage>;
 
-  // Game over
-  if (gameOver || meta.status === "completed") {
-    const won = meta.winner === meta.hostId;
-    const isStory = meta.mode === "story";
+  // Game over — story mode
+  if ((gameOver || meta.status === "ended") && isStory) {
+    const won = meta.winner === "host";
 
-    if (isStory) {
-      return (
-        <VictoryScreen
-          won={won}
-          starsEarned={won ? 1 : 0}
-          storyPath="/story"
-        />
-      );
-    }
+    // Wait for completion mutation to resolve
+    if (!completion) return <Loading />;
+
+    return (
+      <VictoryScreen
+        won={won}
+        starsEarned={completion.starsEarned}
+        rewards={completion.rewards}
+        storyPath={storyCtx?.chapterId ? `/story/${storyCtx.chapterId}` : "/story"}
+      />
+    );
+  }
+
+  // Game over — PvP / non-story
+  if (gameOver || meta.status === "ended") {
+    const won = meta.winner === "host";
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fdfdfb]">
@@ -276,15 +321,14 @@ function FieldRow({
         {label}
       </p>
       {/* Monster zone */}
-      <div className="flex gap-2 mb-2">
+      <div className="flex gap-2 mb-2 overflow-x-auto pb-2 hide-scrollbar">
         {[0, 1, 2, 3, 4].map((i) => {
           const card = slots[i];
           return (
             <div
               key={i}
-              className={`paper-panel-flat w-20 h-24 flex items-center justify-center text-xs ${
-                card ? "" : "opacity-20"
-              }`}
+              className={`paper-panel-flat w-20 h-24 flex items-center justify-center text-xs shrink-0 ${card ? "" : "opacity-20"
+                }`}
             >
               {card ? (
                 faceDown && card.faceDown ? (
@@ -312,15 +356,14 @@ function FieldRow({
         })}
       </div>
       {/* Spell/Trap zone */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
         {[0, 1, 2, 3, 4].map((i) => {
           const card = stSlots[i];
           return (
             <div
               key={i}
-              className={`paper-panel-flat w-20 h-12 flex items-center justify-center text-[10px] ${
-                card ? "border-dashed" : "opacity-20 border-dashed"
-              }`}
+              className={`paper-panel-flat w-20 h-12 flex items-center justify-center text-[10px] shrink-0 ${card ? "border-dashed" : "opacity-20 border-dashed"
+                }`}
             >
               {card ? (
                 faceDown ? (

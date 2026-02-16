@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { motion } from "framer-motion";
+import * as Sentry from "@sentry/react";
 import { apiAny, useConvexQuery, useConvexMutation } from "@/lib/convexHelpers";
 import {
   StoryProvider,
@@ -11,6 +12,7 @@ import {
   type Stage,
 } from "@/components/story";
 import { TrayNav } from "@/components/layout/TrayNav";
+import { STAGES_BG, QUESTIONS_LABEL } from "@/lib/blobUrls";
 
 export function StoryChapter() {
   return (
@@ -56,6 +58,7 @@ function StoryChapterInner() {
       const result = await startBattle({ chapterId, stageNumber: stage.stageNumber });
       navigate(`/play/${result.matchId}`);
     } catch (err: any) {
+      Sentry.captureException(err);
       setError(err.message ?? "Failed to start battle.");
     } finally {
       setStarting(null);
@@ -63,25 +66,29 @@ function StoryChapterInner() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fdfdfb] pb-24">
-      <header className="border-b-2 border-[#121212] px-6 py-5">
+    <div
+      className="min-h-screen pb-24 relative bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url('${STAGES_BG}')` }}
+    >
+      <div className="absolute inset-0 bg-[#fdfdfb]/80" />
+      <header className="relative z-10 border-b-2 border-[#121212] px-6 py-5">
         <button
           type="button"
           onClick={() => navigate("/story")}
-          className="text-xs font-bold uppercase tracking-wider text-[#666] hover:text-[#121212] transition-colors mb-2 block"
+          className="text-xs font-bold uppercase tracking-wider text-[#666] hover:text-[#121212] transition-colors mb-2 block text-center"
           style={{ fontFamily: "Special Elite, cursive" }}
         >
-          &larr; Back to chapters
+          &larr; Back to homework
         </button>
-        <h1
-          className="text-4xl tracking-tighter"
-          style={{ fontFamily: "Outfit, sans-serif", fontWeight: 900 }}
-        >
-          STAGES
-        </h1>
+        <img
+          src={QUESTIONS_LABEL}
+          alt="QUESTIONS"
+          className="h-28 md:h-36 mx-auto"
+          draggable={false}
+        />
       </header>
 
-      <div className="p-6 max-w-3xl mx-auto">
+      <div className="relative z-10 p-6 max-w-3xl mx-auto">
         {!stages ? (
           <div className="flex justify-center py-20">
             <div className="w-8 h-8 border-4 border-[#121212] border-t-transparent rounded-full animate-spin" />
@@ -105,6 +112,7 @@ function StoryChapterInner() {
                 stage={stage}
                 isStarting={starting === stage.stageNumber}
                 onFight={() => handleStartBattle(stage)}
+                chapterId={chapterId}
               />
             ))}
 

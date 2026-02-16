@@ -2,36 +2,55 @@
  * @lunchtable-tcg/plugin-ltcg
  *
  * ElizaOS plugin for playing LunchTable Trading Card Game battles.
+ * Enables AI agents (running in milaidy or standalone) to play story mode
+ * battles via the Convex HTTP API.
  *
- * Required env vars:
- *   LTCG_API_URL — Convex deployment URL (e.g. https://your-app.convex.site)
- *   LTCG_API_KEY — Agent API key from registration (starts with ltcg_)
+ * Required config:
+ *   LTCG_API_URL — Convex site URL (e.g. https://scintillating-mongoose-458.convex.site)
+ *   LTCG_API_KEY — Agent API key from /api/agent/register (starts with ltcg_)
  *
  * Actions:
- *   START_LTCG_BATTLE — Start a story mode battle
- *   PLAY_LTCG_TURN    — Auto-play one turn (summon, attack, end turn)
- *   CHECK_LTCG_STATUS — Check current match state
+ *   START_LTCG_BATTLE  — Start a story mode battle
+ *   PLAY_LTCG_TURN     — Auto-play one turn (summon, attack, end)
+ *   PLAY_LTCG_STORY    — Play through a full story stage (start → loop → complete)
+ *   CHECK_LTCG_STATUS  — Check current match state
+ *   SURRENDER_LTCG     — Forfeit the current match
  *
  * Provider:
- *   ltcg-game-state — Injects current game state into agent context
+ *   ltcg-game-state — Injects board state into agent context
+ *
+ * Routes:
+ *   GET /api/status — Plugin health and match state for monitoring
+ *
+ * Events:
+ *   ACTION_STARTED / ACTION_COMPLETED — Logs LTCG action activity
+ *   WORLD_CONNECTED — Logs when agent comes online
  */
 
-import * as api from "./api.js";
-import { gameStateProvider } from "./gameState.js";
+import { initClient } from "./client.js";
+import { gameStateProvider } from "./provider.js";
 import { startBattleAction } from "./actions/startBattle.js";
 import { playTurnAction } from "./actions/playTurn.js";
 import { getStatusAction } from "./actions/getStatus.js";
+import { surrenderAction } from "./actions/surrender.js";
+import { playStoryAction } from "./actions/playStory.js";
+import { statusRoute } from "./routes/status.js";
+import { ltcgEvents } from "./events.js";
+import type { Plugin, IAgentRuntime } from "./types.js";
 
-const plugin = {
-  name: "@lunchtable-tcg/plugin-ltcg",
+const plugin: Plugin = {
+  name: "ltcg",
   description:
     "Play LunchTable Trading Card Game battles via the agent HTTP API",
 
-  init: async (config: Record<string, string>) => {
-    const apiUrl =
-      config?.LTCG_API_URL || process.env.LTCG_API_URL || "";
-    const apiKey =
-      config?.LTCG_API_KEY || process.env.LTCG_API_KEY || "";
+  config: {
+    LTCG_API_URL: process.env.LTCG_API_URL,
+    LTCG_API_KEY: process.env.LTCG_API_KEY,
+  },
+
+  async init(config: Record<string, string>, _runtime: IAgentRuntime) {
+    const apiUrl = config.LTCG_API_URL || process.env.LTCG_API_URL || "";
+    const apiKey = config.LTCG_API_KEY || process.env.LTCG_API_KEY || "";
 
     if (!apiUrl) {
       throw new Error(
@@ -49,22 +68,51 @@ const plugin = {
       );
     }
 
-    api.configure(apiUrl, apiKey);
+    const client = initClient(apiUrl, apiKey);
 
-    // Verify the key works
-    try {
-      const me = await api.getMe();
-      console.log(
-        `[LTCG] Agent "${me.name}" connected (${me.apiKeyPrefix})`,
-      );
-    } catch (err: any) {
-      throw new Error(`LTCG auth failed: ${err.message}`);
-    }
+    // Verify credentials
+    const me = await client.getMe();
+    console.log(`[LTCG] Connected as "${me.name}" (${me.apiKeyPrefix})`);
   },
 
   providers: [gameStateProvider],
 
-  actions: [startBattleAction, playTurnAction, getStatusAction],
+  actions: [
+    startBattleAction,
+    playTurnAction,
+    playStoryAction,
+    getStatusAction,
+    surrenderAction,
+  ],
+
+  routes: [statusRoute],
+
+  events: ltcgEvents,
 };
 
 export default plugin;
+
+// Re-export for consumers
+export { LTCGClient, LTCGApiError, getClient, initClient } from "./client.js";
+export { gameStateProvider } from "./provider.js";
+export { startBattleAction } from "./actions/startBattle.js";
+export { playTurnAction } from "./actions/playTurn.js";
+export { getStatusAction } from "./actions/getStatus.js";
+export { surrenderAction } from "./actions/surrender.js";
+export { playStoryAction } from "./actions/playStory.js";
+export { statusRoute } from "./routes/status.js";
+export { ltcgEvents } from "./events.js";
+export type {
+  AgentInfo,
+  BoardCard,
+  CardInHand,
+  Chapter,
+  GameCommand,
+  MatchStatus,
+  PlayerView,
+  Route,
+  StageCompletionResult,
+  StageData,
+  StarterDeck,
+  StoryProgress,
+} from "./types.js";

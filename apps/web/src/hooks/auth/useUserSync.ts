@@ -1,5 +1,6 @@
 import { usePrivy } from "@privy-io/react-auth";
 import { useConvexAuth } from "convex/react";
+import * as Sentry from "@sentry/react";
 import { useEffect, useRef } from "react";
 import { apiAny, useConvexMutation, useConvexQuery } from "@/lib/convexHelpers";
 
@@ -36,7 +37,7 @@ export function useUserSync() {
         synced.current = true;
       })
       .catch((err: unknown) => {
-        console.error("[useUserSync] Failed to sync user:", err);
+        Sentry.captureException(err);
       });
   }, [authenticated, convexReady, onboardingStatus, syncUser, privyUser]);
 

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useStory } from "./StoryProvider";
+import { INK_FRAME } from "@/lib/blobUrls";
 
 export function StoryIntro() {
   const { currentEvent, advanceEvent } = useStory();
@@ -67,7 +68,7 @@ function VideoPlayer({
 
       <div className="absolute inset-0 pointer-events-none">
         <img
-          src="/lunchtable/ink-frame.png"
+          src={INK_FRAME}
           alt=""
           className="w-full h-full object-fill opacity-30"
           draggable={false}

@@ -1,4 +1,4 @@
-
+import { STREAM_BG, TAPE } from "@/lib/blobUrls";
 
 interface StreamModalProps {
     isOpen: boolean;
@@ -20,7 +20,7 @@ export function StreamModal({ isOpen, onClose }: StreamModalProps) {
             <div
                 className="relative w-full max-w-lg transform rotate-1 border-4 border-black p-6 md:p-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] z-50"
                 style={{
-                    backgroundImage: "url('/lunchtable/stream-bg.png')",
+                    backgroundImage: `url('${STREAM_BG}')`,
                     backgroundSize: "300px",
                     backgroundColor: "#fff0f5", // Fallback pinkish color
                 }}
@@ -104,7 +104,7 @@ export function StreamModal({ isOpen, onClose }: StreamModalProps) {
                 <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-40 h-10 bg-yellow-200/90 rotate-2 border border-black shadow-sm flex items-center justify-center font-black text-xs"
                     style={{
                         fontFamily: '"Special Elite", cursive',
-                        backgroundImage: "url('/lunchtable/tape.png')",
+                        backgroundImage: `url('${TAPE}')`,
                         backgroundSize: "cover"
                     }}>
                     NO REFUNDS

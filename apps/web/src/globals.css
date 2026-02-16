@@ -329,14 +329,13 @@
 }
 
 .vice-card-front {
-  z-index: 99;
-  transform: rotateY(0deg);
+  transform: rotateY(0deg) translateZ(1px);
   background: transparent;
   /* Snippet had styles, we use image */
 }
 
 .vice-card-back {
-  transform: rotateY(180deg);
+  transform: rotateY(180deg) translateZ(1px);
   background-color: #fdfdfb;
   /* Background image handled inline for overlay logic */
   /* box-shadow: 1px 1px 35px #444; from snippet */
@@ -377,8 +376,13 @@
   animation: tray-icon-breathe 2.5s ease-in-out infinite;
 }
 
-.tray-icon-btn:nth-child(2) { animation-delay: 0.4s; }
-.tray-icon-btn:nth-child(3) { animation-delay: 0.8s; }
+.tray-icon-btn:nth-child(2) {
+  animation-delay: 0.4s;
+}
+
+.tray-icon-btn:nth-child(3) {
+  animation-delay: 0.8s;
+}
 
 .tray-icon-btn:hover {
   transform: scale(1.12);
@@ -413,8 +417,15 @@
 }
 
 @keyframes tray-icon-breathe {
-  0%, 100% { transform: scale(1) translateY(0); }
-  50% { transform: scale(1.05) translateY(-2px); }
+
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+
+  50% {
+    transform: scale(1.05) translateY(-2px);
+  }
 }
 
 @media (min-width: 768px) {

@@ -1,0 +1,84 @@
+/**
+ * Route: GET /api/status
+ *
+ * Health/status endpoint for monitoring the LTCG plugin.
+ * Exposed at /{pluginName}/api/status by ElizaOS.
+ *
+ * Returns:
+ * - plugin name and version
+ * - connection status to the LTCG API
+ * - current match state (if any)
+ * - agent info
+ */
+
+import { getClient } from "../client.js";
+import type { Route, RouteRequest, RouteResponse, IAgentRuntime } from "../types.js";
+
+export const statusRoute: Route = {
+  type: "GET",
+  path: "/api/status",
+  public: true,
+  name: "ltcg-status",
+
+  handler: async (
+    _req: RouteRequest,
+    res: RouteResponse,
+    _runtime: IAgentRuntime,
+  ) => {
+    try {
+      const client = getClient();
+      const matchId = client.currentMatchId;
+
+      // Build status payload
+      const status: Record<string, unknown> = {
+        plugin: "ltcg",
+        status: "ok",
+        connected: true,
+        hasActiveMatch: client.hasActiveMatch,
+        matchId: matchId ?? null,
+        timestamp: Date.now(),
+      };
+
+      // If there's an active match, include its state
+      if (matchId) {
+        try {
+          const view = await client.getView(matchId);
+          status.match = {
+            phase: view.phase,
+            gameOver: view.gameOver,
+            isMyTurn: view.currentTurnPlayer === "host",
+            myLP: view.players.host.lifePoints,
+            oppLP: view.players.away.lifePoints,
+            handSize: view.hand.length,
+          };
+        } catch {
+          status.match = { error: "Unable to fetch match state" };
+        }
+      }
+
+      // Get agent info
+      try {
+        const me = await client.getMe();
+        status.agent = {
+          name: me.name,
+          id: me.id,
+          apiKeyPrefix: me.apiKeyPrefix,
+        };
+      } catch {
+        status.agent = null;
+      }
+
+      res.status(200).json(status);
+    } catch {
+      // Client not initialized
+      res.status(503).json({
+        plugin: "ltcg",
+        status: "disconnected",
+        connected: false,
+        hasActiveMatch: false,
+        matchId: null,
+        timestamp: Date.now(),
+      });
+    }
+  },
+};

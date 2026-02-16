@@ -1,17 +1,22 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useStory, type DialogueLine } from "./StoryProvider";
+import {
+  MILUNCHLADY_CLASSIC, MILUNCHLADY_GOTH, MILUNCHLADY_CYBER,
+  MILUNCHLADY_HYPEBEAST, MILUNCHLADY_PREP, MILUNCHLADY_GAMER,
+  MILUNCHLADY_PFP,
+} from "@/lib/blobUrls";
 
 const SPEAKER_AVATARS: Record<string, string> = {
-  milunchlady: "/lunchtable/milunchlady-classic.png",
-  "milunchlady-goth": "/lunchtable/milunchlady-goth.png",
-  "milunchlady-cyber": "/lunchtable/milunchlady-cyber.png",
-  "milunchlady-hypebeast": "/lunchtable/milunchlady-hypebeast.png",
-  "milunchlady-prep": "/lunchtable/milunchlady-prep.png",
-  "milunchlady-gamer": "/lunchtable/milunchlady-gamer.png",
+  milunchlady: MILUNCHLADY_CLASSIC,
+  "milunchlady-goth": MILUNCHLADY_GOTH,
+  "milunchlady-cyber": MILUNCHLADY_CYBER,
+  "milunchlady-hypebeast": MILUNCHLADY_HYPEBEAST,
+  "milunchlady-prep": MILUNCHLADY_PREP,
+  "milunchlady-gamer": MILUNCHLADY_GAMER,
 };
 
-const DEFAULT_AVATAR = "/lunchtable/milunchladypfp.png";
+const DEFAULT_AVATAR = MILUNCHLADY_PFP;
 const CHAR_DELAY = 30;
 
 function getAvatar(speaker: string, lineAvatar?: string): string {

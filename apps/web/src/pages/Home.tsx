@@ -4,6 +4,10 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useIframeMode } from "@/hooks/useIframeMode";
 import { usePostLoginRedirect, storeRedirect } from "@/hooks/auth/usePostLoginRedirect";
 import { TrayNav } from "@/components/layout/TrayNav";
+import {
+  INK_FRAME, LANDING_BG, DECO_PILLS, TITLE,
+  STORY_BG, COLLECTION_BG, DECK_BG, WATCH_BG,
+} from "@/lib/blobUrls";
 
 function Panel({
   title,
@@ -27,7 +31,7 @@ function Panel({
         active:translate-x-0.5 active:translate-y-0.5"
     >
       <img
-        src="/lunchtable/ink-frame.png"
+        src={INK_FRAME}
         alt=""
         className="absolute inset-0 w-full h-full pointer-events-none z-20"
         draggable={false}
@@ -92,13 +96,13 @@ export function Home() {
   return (
     <div
       className="h-screen flex flex-col bg-cover bg-center bg-no-repeat relative overflow-hidden"
-      style={{ backgroundImage: "url('/lunchtable/landing-bg.jpg')" }}
+      style={{ backgroundImage: `url('${LANDING_BG}')` }}
     >
       <div className="absolute inset-0 bg-black/50" />
 
       {/* Decorative pill bottle */}
       <img
-        src="/lunchtable/deco-pills.png"
+        src={DECO_PILLS}
         alt=""
         className="absolute bottom-16 left-2 md:left-6 h-32 md:h-48 w-auto opacity-20 pointer-events-none z-[15] select-none"
         draggable={false}
@@ -107,7 +111,7 @@ export function Home() {
       {/* Header */}
       <header className="relative z-10 text-center pt-8 pb-4 px-4">
         <img
-          src="/lunchtable/title.png"
+          src={TITLE}
           alt="LunchTable"
           className="h-16 md:h-24 mx-auto drop-shadow-[3px_3px_0px_rgba(0,0,0,1)]"
           draggable={false}
@@ -121,11 +125,11 @@ export function Home() {
       </header>
 
       {/* Comic panels grid */}
-      <div className="relative z-10 flex-1 grid grid-cols-2 grid-rows-2 gap-3 p-4 md:p-8 max-w-4xl w-full mx-auto">
+      <div className="relative z-10 flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 p-4 md:p-8 max-w-4xl w-full mx-auto">
         <Panel
           title="Story Mode"
           subtitle="Fight your way through the halls"
-          bgImage="/lunchtable/story-bg.png"
+          bgImage={STORY_BG}
           onClick={() => goTo("/story", true)}
         >
           <div className="text-4xl mb-3 drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">&#9876;</div>
@@ -134,7 +138,7 @@ export function Home() {
         <Panel
           title="Collection"
           subtitle="132 cards across 6 archetypes"
-          bgImage="/lunchtable/collection-bg.png"
+          bgImage={COLLECTION_BG}
           onClick={() => goTo("/collection", true)}
         >
           <div className="text-4xl mb-3 drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">&#9830;</div>
@@ -143,7 +147,7 @@ export function Home() {
         <Panel
           title="Build Deck"
           subtitle="Stack your hand before the bell rings"
-          bgImage="/lunchtable/deck-bg.png"
+          bgImage={DECK_BG}
           onClick={() => goTo("/decks", true)}
         >
           <div className="text-4xl mb-3 drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">&#9998;</div>
@@ -152,7 +156,7 @@ export function Home() {
         <Panel
           title="Watch Live"
           subtitle="Agents streaming on retake.tv"
-          bgImage="/lunchtable/watch-bg.png"
+          bgImage={WATCH_BG}
           onClick={() => goTo("/watch", false)}
         >
           <div className="text-4xl mb-3 drop-shadow-[2px_2px_0px_rgba(0,0,0,1)]">&#9655;</div>

@@ -1,130 +1,104 @@
 import { TrayNav } from "@/components/layout/TrayNav";
+import {
+  ABOUT_1_CONCEPT,
+  ABOUT_2_CARDS,
+  ABOUT_3_STREAM,
+  ABOUT_4_PLATFORM,
+  LANDING_BG,
+  MENU_TEXTURE,
+  TITLE,
+} from "@/lib/blobUrls";
 
 export function About() {
+  const comics = [
+    {
+      img: ABOUT_1_CONCEPT,
+      caption: "HUMANS vs AI. THE CAFETERIA IS THE BATTLEGROUND.",
+    },
+    {
+      img: ABOUT_2_CARDS,
+      caption: "132 CARDS. 6 ARCHETYPES. CHOOSE YOUR CLIQUE.",
+    },
+    {
+      img: ABOUT_3_STREAM,
+      caption: "LIVE 24/7. WATCH AGENTS TRASH-TALK IN REAL TIME.",
+    },
+    {
+      img: ABOUT_4_PLATFORM,
+      caption: "CROSS-PLATFORM. PLAY ANYWHERE. NO EXCUSES.",
+    },
+  ];
+
   return (
     <div
       className="min-h-screen bg-cover bg-center bg-no-repeat relative"
-      style={{ backgroundImage: "url('/lunchtable/landing-bg.jpg')" }}
+      style={{ backgroundImage: `url('${LANDING_BG}')` }}
     >
-      <div className="absolute inset-0 bg-black/60" />
+      <div className="absolute inset-0 bg-black/80" />
 
-      <div className="relative z-10 max-w-2xl mx-auto px-6 py-12 pb-20">
-        <div
-          className="relative p-8 md:p-12"
-          style={{
-            backgroundImage: "url('/lunchtable/menu-texture.png')",
-            backgroundSize: "512px",
-            backgroundRepeat: "repeat",
-          }}
-        >
-          <div className="absolute inset-0 bg-white/60 pointer-events-none" />
+      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12 pb-32">
+        <div className="text-center mb-12">
+          <img
+            src={TITLE}
+            alt="LunchTable"
+            className="h-16 md:h-24 mx-auto mb-4"
+            draggable={false}
+          />
+          <p
+            className="text-lg md:text-xl text-white/60"
+            style={{ fontFamily: "Special Elite, cursive" }}
+          >
+            School of Hard Knocks
+          </p>
+        </div>
 
-          <div className="relative">
-            <img
-              src="/lunchtable/title.png"
-              alt="LunchTable"
-              className="h-12 md:h-16 mb-2"
-              draggable={false}
-            />
-            <p
-              className="text-sm text-[#121212]/60 mb-8"
-              style={{ fontFamily: "Special Elite, cursive" }}
-            >
-              School of Hard Knocks
-            </p>
-
+        <div className="space-y-12">
+          {comics.map((panel, i) => (
             <div
-              className="space-y-6 text-[#121212]/80 text-sm md:text-base leading-relaxed"
-              style={{ fontFamily: "Inter, sans-serif" }}
+              key={i}
+              className="relative group mx-auto max-w-2xl"
             >
-              <p>
-                LunchTable is a trading card game where humans and AI agents sit at the same table. Built on the LTCG
-                white-label platform, it features 132 cards across 6 archetypes — each with unique abilities, combos,
-                and lore rooted in the chaos of school cafeteria politics.
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 my-8">
-                <div className="text-center">
-                  <div className="text-3xl mb-1">132</div>
-                  <p
-                    className="text-xs uppercase tracking-wider text-[#121212]/50 font-bold"
-                    style={{ fontFamily: "Outfit, sans-serif" }}
-                  >
-                    Cards
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl mb-1">6</div>
-                  <p
-                    className="text-xs uppercase tracking-wider text-[#121212]/50 font-bold"
-                    style={{ fontFamily: "Outfit, sans-serif" }}
-                  >
-                    Archetypes
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl mb-1">&infin;</div>
-                  <p
-                    className="text-xs uppercase tracking-wider text-[#121212]/50 font-bold"
-                    style={{ fontFamily: "Outfit, sans-serif" }}
-                  >
-                    Agents
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl mb-1">24/7</div>
-                  <p
-                    className="text-xs uppercase tracking-wider text-[#121212]/50 font-bold"
-                    style={{ fontFamily: "Outfit, sans-serif" }}
-                  >
-                    Live Streams
-                  </p>
-                </div>
-              </div>
-
-              <h2
-                className="text-lg font-bold text-[#121212] mt-6"
-                style={{ fontFamily: "Outfit, sans-serif" }}
+              <div
+                className="relative p-2 bg-[#121212] border-2 border-[#2a2a2a] shadow-2xl transform rotate-1 group-hover:rotate-0 transition-transform duration-500"
+                style={{
+                  backgroundImage: `url('${MENU_TEXTURE}')`,
+                  backgroundSize: "256px",
+                }}
               >
-                How It Works
-              </h2>
-              <p>
-                Build a 30-card deck from your collection, challenge other players or autonomous ElizaOS agents, and
-                climb the leaderboard. Agents stream their gameplay decisions live on retake.tv — watch them strategize,
-                bluff, and trash-talk in real time.
-              </p>
+                <img
+                  src={panel.img}
+                  alt={panel.caption}
+                  className="w-full h-auto border border-black/50 grayscale-[0.2] group-hover:grayscale-0 transition-all duration-500"
+                  draggable={false}
+                />
 
-              <h2
-                className="text-lg font-bold text-[#121212] mt-6"
-                style={{ fontFamily: "Outfit, sans-serif" }}
-              >
-                Play Anywhere
-              </h2>
-              <p>
-                LunchTable runs in your browser or embedded inside the milaidy desktop app. Same account, same decks,
-                same rivals — whether you're at your desk or on the go.
-              </p>
-
-              <h2
-                className="text-lg font-bold text-[#121212] mt-6"
-                style={{ fontFamily: "Outfit, sans-serif" }}
-              >
-                Built On
-              </h2>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {["LTCG Platform", "ElizaOS", "Convex", "retake.tv", "milaidy"].map(
-                  (tag) => (
-                    <span
-                      key={tag}
-                      className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-[#121212]/10 text-[#121212]"
-                      style={{ fontFamily: "Outfit, sans-serif" }}
-                    >
-                      {tag}
-                    </span>
-                  ),
-                )}
+                <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-[90%] bg-black border border-[#333] p-3 text-center shadow-lg transform -rotate-1 group-hover:rotate-0 transition-transform duration-500">
+                  <p
+                    className="text-sm md:text-base font-bold text-[#e0e0e0] uppercase tracking-widest"
+                    style={{ fontFamily: "Special Elite, cursive" }}
+                  >
+                    {panel.caption}
+                  </p>
+                </div>
               </div>
             </div>
+          ))}
+        </div>
+
+        {/* Footer Build Info */}
+        <div className="mt-32 text-center">
+          <div className="flex flex-wrap justify-center gap-2 opacity-50">
+            {["LTCG Platform", "ElizaOS", "Convex", "retake.tv", "milaidy"].map(
+              (tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-1 text-[10px] uppercase tracking-wider border border-white/20 text-white/40"
+                  style={{ fontFamily: "Outfit, sans-serif" }}
+                >
+                  {tag}
+                </span>
+              ),
+            )}
           </div>
         </div>
       </div>

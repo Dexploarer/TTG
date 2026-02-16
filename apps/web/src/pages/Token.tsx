@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TrayNav } from "@/components/layout/TrayNav";
+import { TITLE, VICE_SPLASH, VICE_COUNTER, MENU_TEXTURE, viceImage } from "@/lib/blobUrls";
 
 const SOLANA_TOKEN = "DfC2mRB5SNF1eCQZPh2cGi5QhNQnm3jRNHwa5Rtkpump";
 
@@ -83,7 +84,7 @@ export function Token() {
     <div
       className="min-h-screen relative bg-fixed bg-center bg-cover"
       style={{
-        backgroundImage: "url('/lunchtable/vices/vice-splash.png')",
+        backgroundImage: `url('${VICE_SPLASH}')`,
       }}
     >
       {/* Dark overlay for contrast */}
@@ -92,7 +93,7 @@ export function Token() {
       <div className="relative z-10 pt-8 pb-4 px-6">
         <div className="max-w-3xl mx-auto text-center">
           <img
-            src="/lunchtable/title.png"
+            src={TITLE}
             alt="LunchTable"
             className="h-12 md:h-16 mx-auto mb-2 drop-shadow-[3px_3px_0px_rgba(0,0,0,1)]"
             draggable={false}
@@ -119,7 +120,7 @@ export function Token() {
       {/* Vice counter icon */}
       <div className="relative z-10 flex justify-center py-6">
         <img
-          src="/lunchtable/vices/vice-counter.png"
+          src={VICE_COUNTER}
           alt="Vice Counter"
           className="h-20 md:h-28 w-auto opacity-60 invert"
           draggable={false}
@@ -160,7 +161,7 @@ export function Token() {
               {/* Front side (Comic Strip) */}
               <div className="vice-card-face vice-card-front">
                 <img
-                  src={`/lunchtable/vices/${vice.slug}.png`}
+                  src={viceImage(vice.slug)}
                   alt={vice.name}
                   className="w-full h-full"
                   style={{ objectFit: "fill", borderRadius: "35px" }}
@@ -172,33 +173,33 @@ export function Token() {
               <div
                 className="vice-card-face vice-card-back relative"
                 style={{
-                  backgroundImage: "url('/lunchtable/menu-texture.png')",
+                  backgroundImage: `url('${MENU_TEXTURE}')`,
                   backgroundSize: "256px 256px",
                 }}
               >
                 {/* Dimming overlay */}
                 <div className="absolute inset-0 bg-white/90" />
 
-                <div className="relative z-10 w-full h-full p-6 flex flex-col items-center justify-center text-center">
+                <div className="relative z-10 w-full h-full p-3 md:p-6 flex flex-col items-center justify-center text-center">
                   <h3
-                    className="text-3xl font-black uppercase tracking-tight text-[#121212] mb-4 transform -rotate-2"
+                    className="text-xl md:text-3xl font-black uppercase tracking-tight text-[#121212] mb-4 transform -rotate-2"
                     style={{ fontFamily: "Permanent Marker, cursive" }}
                   >
                     {vice.name}
                   </h3>
 
-                  <div className="w-full h-0.5 bg-[#121212] mb-6 transform rotate-1" />
+                  <div className="w-full h-0.5 bg-[#121212] mb-3 md:mb-6 transform rotate-1" />
 
                   <p
-                    className="text-lg text-[#121212] mb-8 font-bold leading-tight transform rotate-1"
+                    className="text-sm md:text-lg text-[#121212] mb-4 md:mb-8 font-bold leading-tight transform rotate-1"
                     style={{ fontFamily: "Permanent Marker, cursive" }}
                   >
                     "{vice.desc}"
                   </p>
 
-                  <div className="bg-[#f0f0f0] p-4 border-2 border-[#121212] transform -rotate-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full">
+                  <div className="bg-[#f0f0f0] p-2 md:p-4 border-2 border-[#121212] transform -rotate-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] w-full">
                     <p
-                      className="text-sm md:text-base text-[#121212] leading-snug uppercase font-bold"
+                      className="text-xs md:text-base text-[#121212] leading-snug uppercase font-bold"
                       style={{ fontFamily: "Permanent Marker, cursive" }}
                     >
                       <span className="text-[#ff4444] block mb-1">

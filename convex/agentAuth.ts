@@ -3,11 +3,13 @@ import { mutation, query } from "./_generated/server";
 import { components } from "./_generated/api";
 import { LTCGCards } from "@lunchtable-tcg/cards";
 import { LTCGMatch } from "@lunchtable-tcg/match";
+import { LTCGStory } from "@lunchtable-tcg/story";
 import { createInitialState, DEFAULT_CONFIG, buildCardLookup } from "@lunchtable-tcg/engine";
 import { DECK_RECIPES } from "./cardData";
 
 const cards = new LTCGCards(components.lunchtable_tcg_cards as any);
 const match = new LTCGMatch(components.lunchtable_tcg_match as any);
+const story = new LTCGStory(components.lunchtable_tcg_story as any);
 
 // ── Agent Queries ─────────────────────────────────────────────────
 
@@ -61,6 +63,14 @@ export const agentStartBattle = mutation({
   handler: async (ctx, args) => {
     const user = await ctx.db.get(args.agentUserId);
     if (!user) throw new Error("Agent user not found");
+    const stageNum = args.stageNumber ?? 1;
+
+    // Resolve stage to get stageId for progress tracking
+    const stages = await story.stages.getStages(ctx, args.chapterId);
+    const stage = (stages as any[])?.find(
+      (s: any) => s.stageNumber === stageNum,
+    );
+    if (!stage) throw new Error(`Stage ${stageNum} not found in chapter`);
 
     if (!user.activeDeckId) throw new Error("No active deck set. Select a starter deck first.");
     const deckData = await cards.decks.getDeckWithCards(ctx, user.activeDeckId);
@@ -125,7 +135,16 @@ export const agentStartBattle = mutation({
       initialState: JSON.stringify(initialState),
     });
 
-    return { matchId, stageNumber: args.stageNumber ?? 1 };
+    // Link match to story context
+    await ctx.db.insert("storyMatches", {
+      matchId,
+      userId: user._id,
+      chapterId: args.chapterId,
+      stageNumber: stageNum,
+      stageId: stage._id,
+    });
+
+    return { matchId, chapterId: args.chapterId, stageNumber: stageNum };
   },
 });
 

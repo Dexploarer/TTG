@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useConvexAuth } from "convex/react";
+import * as Sentry from "@sentry/react";
 import { apiAny, useConvexQuery, useConvexMutation } from "@/lib/convexHelpers";
 
 type Deck = {
@@ -42,7 +43,7 @@ export function Decks() {
     try {
       await setActiveDeck({ deckId });
     } catch (err) {
-      console.error("Failed to set active deck:", err);
+      Sentry.captureException(err);
     } finally {
       setSettingActive(null);
     }
@@ -54,7 +55,7 @@ export function Decks() {
       const result = await createDeck({ name: `Deck ${(userDecks?.length ?? 0) + 1}` });
       if (result?.deckId) navigate(`/decks/${result.deckId}`);
     } catch (err) {
-      console.error("Failed to create deck:", err);
+      Sentry.captureException(err);
     } finally {
       setCreating(false);
     }
@@ -119,14 +120,13 @@ export function Decks() {
               return (
                 <div
                   key={deck._id}
-                  className={`paper-panel p-6 transition-all ${
-                    isActive
-                      ? "ring-2 ring-[#ffcc00] shadow-[6px_6px_0px_0px_rgba(18,18,18,1)]"
-                      : ""
-                  }`}
+                  className={`paper-panel p-6 transition-all ${isActive
+                    ? "ring-2 ring-[#ffcc00] shadow-[6px_6px_0px_0px_rgba(18,18,18,1)]"
+                    : ""
+                    }`}
                 >
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
+                  <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="w-full md:w-auto">
                       <div className="flex items-center gap-2 mb-1">
                         <h2
                           className="text-xl leading-tight"
@@ -153,7 +153,7 @@ export function Decks() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 w-full md:w-auto mt-2 md:mt-0">
                       <button
                         type="button"
                         onClick={() => navigate(`/decks/${deck._id}`)}

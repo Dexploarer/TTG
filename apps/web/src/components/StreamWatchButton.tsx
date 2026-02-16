@@ -1,4 +1,4 @@
-
+import { RETRO_TV } from "@/lib/blobUrls";
 
 interface StreamWatchButtonProps {
     onClick: () => void;
@@ -13,7 +13,7 @@ export function StreamWatchButton({ onClick }: StreamWatchButtonProps) {
         >
             {/* Retro TV Icon */}
             <img
-                src="/lunchtable/retro-tv.png"
+                src={RETRO_TV}
                 alt="Watch Live"
                 className="w-full h-auto drop-shadow-2xl filter contrast-125"
             />

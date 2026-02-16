@@ -1,106 +1,108 @@
 /**
- * Action: Start a LunchTable story battle.
+ * Action: START_LTCG_BATTLE
  *
- * Fetches available chapters, picks the first one, starts a match,
- * and stores the matchId for subsequent actions.
+ * Starts a story mode battle. Auto-selects a starter deck if the agent
+ * doesn't have one, picks the first available chapter, and begins the match.
  */
 
-import * as api from "../api.js";
+import { getClient } from "../client.js";
+import type {
+  Action,
+  IAgentRuntime,
+  Memory,
+  State,
+  HandlerCallback,
+} from "../types.js";
 
-export const startBattleAction = {
+export const startBattleAction: Action = {
   name: "START_LTCG_BATTLE",
   similes: ["PLAY_LTCG", "START_MATCH", "FIGHT_BATTLE", "PLAY_CARD_GAME"],
   description:
-    "Start a LunchTable Trading Card Game story battle against the AI opponent",
+    "Start a LunchTable Trading Card Game story battle against the AI opponent. Only available when no match is active.",
 
-  validate: async () => {
-    if (!api.isConfigured()) return false;
-    // Only valid if no active match
-    return !api.getCurrentMatch();
+  validate: async (
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+  ) => {
+    try {
+      return !getClient().hasActiveMatch;
+    } catch {
+      return false;
+    }
   },
 
   handler: async (
-    _runtime: any,
-    message: any,
-    _state: any,
-    _options: any,
-    callback?: (response: any) => Promise<void>,
+    _runtime: IAgentRuntime,
+    _message: Memory,
+    _state?: State,
+    _options?: Record<string, unknown>,
+    callback?: HandlerCallback,
   ) => {
-    try {
-      // Verify agent is set up
-      const me = await api.getMe();
+    const client = getClient();
 
-      // Check if agent has a deck — if not, auto-select one
+    try {
+      const me = await client.getMe();
+
+      // Ensure agent has a deck — auto-select if not
       try {
-        const decks = await api.getStarterDecks();
-        if (decks && decks.length > 0) {
-          // Pick a random starter deck
+        const decks = await client.getStarterDecks();
+        if (decks.length > 0) {
           const deck = decks[Math.floor(Math.random() * decks.length)];
-          await api.selectDeck(deck.deckCode);
+          await client.selectDeck(deck.deckCode);
         }
-      } catch {
-        // Already has a deck — that's fine
+      } catch (err) {
+        // Deck selection failed — agent likely already has one.
+        // Other errors (network, auth) will surface when startBattle runs.
+        console.warn(
+          "[LTCG] Deck selection skipped:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
 
       // Get first available chapter
-      const chapters = await api.getChapters();
-      if (!chapters || chapters.length === 0) {
-        throw new Error("No story chapters available.");
+      const chapters = await client.getChapters();
+      if (!chapters.length) {
+        throw new Error("No story chapters available. Run seed first.");
       }
       const chapter = chapters[0];
 
       // Start the battle
-      const result = await api.startBattle(chapter._id, 1);
-      api.setCurrentMatch(result.matchId);
+      const result = await client.startBattle(chapter._id, 1);
+      client.setMatch(result.matchId);
 
-      const text = `Battle started! Playing Chapter "${chapter.title ?? chapter.name ?? "1"}" as ${me.name}. Match: ${result.matchId}`;
-
-      if (callback) {
-        await callback({
-          text,
-          actions: ["START_LTCG_BATTLE"],
-          source: message.content?.source,
-        });
-      }
-
-      return {
-        text,
-        values: { ltcgMatchId: result.matchId },
-        success: true,
-      };
-    } catch (err: any) {
-      const text = `Failed to start battle: ${err.message}`;
-      if (callback) {
-        await callback({ text, source: message.content?.source });
-      }
-      return { text, success: false, error: err };
+      const text = `Battle started! Chapter "${chapter.title ?? chapter.name}" as ${me.name}. Match: ${result.matchId}`;
+      if (callback) await callback({ text, action: "START_LTCG_BATTLE" });
+      return { success: true, data: { matchId: result.matchId } };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const text = `Failed to start battle: ${msg}`;
+      if (callback) await callback({ text });
+      return { success: false, error: msg };
     }
   },
 
   examples: [
     [
+      { name: "{{user1}}", content: { text: "Play a card game" } },
       {
-        name: "{{userName}}",
-        content: { text: "Play a card game for me" },
-      },
-      {
-        name: "{{agentName}}",
+        name: "{{agent}}",
         content: {
           text: "Starting a LunchTable battle!",
-          actions: ["START_LTCG_BATTLE"],
+          action: "START_LTCG_BATTLE",
         },
       },
     ],
     [
       {
-        name: "{{userName}}",
-        content: { text: "Fight a story battle" },
+        name: "{{user1}}",
+        content: { text: "Start a story battle for me" },
       },
       {
-        name: "{{agentName}}",
+        name: "{{agent}}",
         content: {
-          text: "Let me start a story mode battle for you!",
-          actions: ["START_LTCG_BATTLE"],
+          text: "Let me start a story mode battle!",
+          action: "START_LTCG_BATTLE",
         },
       },
     ],

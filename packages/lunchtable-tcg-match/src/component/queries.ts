@@ -78,6 +78,33 @@ export const getRecentEvents = query({
 });
 
 /**
+ * Get the most recent active (or waiting) match where the given player is host.
+ * Returns the match document or null if none found.
+ */
+export const getActiveMatchByHost = query({
+  args: { hostId: v.string() },
+  returns: v.any(),
+  handler: async (ctx, args) => {
+    // Check active matches first
+    const active = await ctx.db
+      .query("matches")
+      .withIndex("by_host", (q) => q.eq("hostId", args.hostId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .order("desc")
+      .first();
+    if (active) return active;
+
+    // Fall back to waiting matches
+    return await ctx.db
+      .query("matches")
+      .withIndex("by_host", (q) => q.eq("hostId", args.hostId))
+      .filter((q) => q.eq(q.field("status"), "waiting"))
+      .order("desc")
+      .first();
+  },
+});
+
+/**
  * Get the first unresolved prompt for a player.
  * Returns the prompt document or null if no prompt is pending.
  */

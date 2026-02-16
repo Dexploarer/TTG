@@ -44,7 +44,7 @@ function corsHandler(
 }
 
 /**
- * Register a route with CORS support
+ * Register a route with CORS support (includes OPTIONS preflight)
  */
 function corsRoute({
   path,
@@ -52,15 +52,27 @@ function corsRoute({
   handler,
 }: {
   path: string;
-  method: "GET" | "POST" | "PUT" | "DELETE" | "OPTIONS" | "PATCH";
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   handler: (ctx: any, request: Request) => Promise<Response>;
 }) {
+  // Register the actual method
   http.route({
     path,
     method,
     handler: httpAction(corsHandler(handler)),
   });
+  // Register OPTIONS preflight for the same path
+  if (!registeredOptions.has(path)) {
+    registeredOptions.add(path);
+    http.route({
+      path,
+      method: "OPTIONS",
+      handler: httpAction(corsHandler(async () => new Response(null, { status: 204 }))),
+    });
+  }
 }
+
+const registeredOptions = new Set<string>();
 
 // ── Agent Auth Middleware ─────────────────────────────────────────
 
@@ -154,6 +166,12 @@ corsRoute({
     const agent = await authenticateAgent(ctx, request);
     if (!agent) return errorResponse("Unauthorized", 401);
 
+    // Check if there's an unread daily briefing
+    const briefing = await ctx.runQuery(api.dailyBriefing.getAgentDailyBriefing, {
+      agentId: agent._id,
+      userId: agent.userId,
+    });
+
     return jsonResponse({
       id: agent._id,
       name: agent.name,
@@ -161,6 +179,14 @@ corsRoute({
       apiKeyPrefix: agent.apiKeyPrefix,
       isActive: agent.isActive,
       createdAt: agent.createdAt,
+      dailyBriefing: briefing?.active
+        ? {
+            available: true,
+            checkedIn: briefing.checkedIn,
+            event: briefing.event,
+            announcement: briefing.announcement,
+          }
+        : { available: false, checkedIn: false },
     });
   },
 });
@@ -244,7 +270,10 @@ corsRoute({
 
     try {
       const view = await ctx.runQuery(api.game.getPlayerView, { matchId, seat });
-      return jsonResponse(view);
+      if (!view) return errorResponse("Match state not found", 404);
+      // getPlayerView returns a JSON string — parse before wrapping
+      const parsed = typeof view === "string" ? JSON.parse(view) : view;
+      return jsonResponse(parsed);
     } catch (e: any) {
       return errorResponse(e.message, 422);
     }
@@ -339,6 +368,137 @@ corsRoute({
 
     if (!stage) return errorResponse("Stage not found", 404);
     return jsonResponse(stage);
+  },
+});
+
+corsRoute({
+  path: "/api/agent/story/complete-stage",
+  method: "POST",
+  handler: async (ctx, request) => {
+    const agent = await authenticateAgent(ctx, request);
+    if (!agent) return errorResponse("Unauthorized", 401);
+
+    const body = await request.json();
+    const { matchId } = body;
+
+    if (!matchId || typeof matchId !== "string") {
+      return errorResponse("matchId is required.");
+    }
+
+    try {
+      const result = await ctx.runMutation(api.game.completeStoryStage, {
+        matchId,
+      });
+      return jsonResponse(result);
+    } catch (e: any) {
+      return errorResponse(e.message, 422);
+    }
+  },
+});
+
+corsRoute({
+  path: "/api/agent/game/match-status",
+  method: "GET",
+  handler: async (ctx, request) => {
+    const agent = await authenticateAgent(ctx, request);
+    if (!agent) return errorResponse("Unauthorized", 401);
+
+    const url = new URL(request.url);
+    const matchId = url.searchParams.get("matchId");
+
+    if (!matchId) {
+      return errorResponse("matchId query parameter is required.");
+    }
+
+    try {
+      const meta = await ctx.runQuery(api.game.getMatchMeta, { matchId });
+      const storyCtx = await ctx.runQuery(api.game.getStoryMatchContext, { matchId });
+
+      return jsonResponse({
+        matchId,
+        status: (meta as any)?.status,
+        mode: (meta as any)?.mode,
+        winner: (meta as any)?.winner ?? null,
+        endReason: (meta as any)?.endReason ?? null,
+        isGameOver: (meta as any)?.status === "ended",
+        chapterId: storyCtx?.chapterId ?? null,
+        stageNumber: storyCtx?.stageNumber ?? null,
+        outcome: storyCtx?.outcome ?? null,
+        starsEarned: storyCtx?.starsEarned ?? null,
+      });
+    } catch (e: any) {
+      return errorResponse(e.message, 422);
+    }
+  },
+});
+
+// ── Agent Active Match ──────────────────────────────────────
+
+corsRoute({
+  path: "/api/agent/active-match",
+  method: "GET",
+  handler: async (ctx, request) => {
+    const agent = await authenticateAgent(ctx, request);
+    if (!agent) return errorResponse("Unauthorized", 401);
+
+    const activeMatch = await ctx.runQuery(api.game.getActiveMatchByHost, {
+      hostId: agent.userId,
+    });
+
+    if (!activeMatch) {
+      return jsonResponse({ matchId: null, status: null });
+    }
+
+    return jsonResponse({
+      matchId: activeMatch._id,
+      status: activeMatch.status,
+      mode: activeMatch.mode,
+      createdAt: activeMatch.createdAt,
+    });
+  },
+});
+
+// ── Agent Daily Briefing ─────────────────────────────────────
+
+corsRoute({
+  path: "/api/agent/daily-briefing",
+  method: "GET",
+  handler: async (ctx, request) => {
+    const agent = await authenticateAgent(ctx, request);
+    if (!agent) return errorResponse("Unauthorized", 401);
+
+    const briefing = await ctx.runQuery(api.dailyBriefing.getAgentDailyBriefing, {
+      agentId: agent._id,
+      userId: agent.userId,
+    });
+
+    return jsonResponse(briefing);
+  },
+});
+
+corsRoute({
+  path: "/api/agent/checkin",
+  method: "POST",
+  handler: async (ctx, request) => {
+    const agent = await authenticateAgent(ctx, request);
+    if (!agent) return errorResponse("Unauthorized", 401);
+
+    // Record check-in
+    const checkinResult = await ctx.runMutation(api.dailyBriefing.agentCheckin, {
+      agentId: agent._id,
+      userId: agent.userId,
+    });
+
+    // Return full briefing with check-in status
+    const briefing = await ctx.runQuery(api.dailyBriefing.getAgentDailyBriefing, {
+      agentId: agent._id,
+      userId: agent.userId,
+    });
+
+    return jsonResponse({
+      ...briefing,
+      checkinStatus: checkinResult,
+    });
   },
 });
 
