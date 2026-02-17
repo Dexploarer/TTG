@@ -60,7 +60,7 @@ export type OpenPrompt = {
   matchId: string;
   seat: Seat;
   promptType: "chain_response" | "optional_trigger" | "replay_decision" | "discard";
-  data?: string;
+  data?: unknown;
   resolved: boolean;
   createdAt: number;
   resolvedAt?: number;
@@ -99,25 +99,63 @@ export type CardDefinition = {
 export type GameCardInstance = {
   cardId: string;
   definitionId: string;
+  position?: "attack" | "defense";
   faceDown?: boolean;
   canAttack?: boolean;
   hasAttackedThisTurn?: boolean;
+  changedPositionThisTurn?: boolean;
+  viceCounters?: number;
   turnSummoned?: number;
   temporaryBoosts?: {
     attack?: number;
+    defense?: number;
   };
+  equippedCards?: string[];
+};
+
+export type GameSpellTrapInstance = {
+  cardId: string;
+  definitionId: string;
+  faceDown?: boolean;
+  activated?: boolean;
+  isFieldSpell?: boolean;
+};
+
+export type ChainLink = {
+  cardId: string;
+  effectIndex: number;
+  activatingPlayer: Seat;
+  targets: string[];
 };
 
 export type PlayerView = {
-  currentTurnPlayer?: Seat;
-  mySeat?: Seat;
-  currentPhase?: "draw" | "standby" | "breakdown_check" | "main" | "main2" | "combat" | "end";
-  gameOver?: boolean;
-  turnNumber?: number;
-  board?: GameCardInstance[];
-  opponentBoard?: GameCardInstance[];
-  hand?: string[];
-  spellTrapZone?: Array<{ cardId: string; definitionId: string; faceDown?: boolean; } >;
+  currentTurnPlayer: Seat;
+  mySeat: Seat;
+  currentPhase: "draw" | "standby" | "breakdown_check" | "main" | "main2" | "combat" | "end";
+  currentPriorityPlayer: Seat | null;
+  gameOver: boolean;
+  turnNumber: number;
+  board: GameCardInstance[];
+  opponentBoard: GameCardInstance[];
+  hand: string[];
+  spellTrapZone: GameSpellTrapInstance[];
+  fieldSpell: GameSpellTrapInstance | null;
+  graveyard: string[];
+  banished: string[];
+  lifePoints: number;
+  deckCount: number;
+  breakdownsCaused: number;
+  opponentHandCount: number;
+  opponentSpellTrapZone: GameSpellTrapInstance[];
+  opponentFieldSpell: GameSpellTrapInstance | null;
+  opponentGraveyard: string[];
+  opponentBanished: string[];
+  opponentLifePoints: number;
+  opponentDeckCount: number;
+  opponentBreakdownsCaused: number;
+  currentChain: ChainLink[];
+  winner: Seat | null;
+  winReason: "lp_zero" | "deck_out" | "breakdown" | "surrender" | null;
   players?: {
     host?: {
       lifePoints?: number;
@@ -127,11 +165,6 @@ export type PlayerView = {
     };
   };
   turnPlayer?: Seat;
-  lifePoints?: {
-    host?: number;
-    away?: number;
-  };
-  currentChain?: unknown[];
   gameResult?: string;
 };
 

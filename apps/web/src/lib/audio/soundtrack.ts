@@ -19,6 +19,7 @@ interface CachedManifestEntry {
   source: string;
   manifest: SoundtrackManifest;
   cachedAt: number;
+  normalized?: boolean;
 }
 
 const COMMENT_PREFIXES = ["#", ";", "//"];
@@ -294,7 +295,9 @@ function parseTrackPayload(raw: string): SoundtrackManifest {
   const trimmed = raw.trim();
 
   try {
-    const json = JSON.parse(trimmed) as {
+    const json = JSON.parse(trimmed) as
+      | SoundtrackManifest
+      | {
       playlists?: unknown;
       tracksByCategory?: unknown;
       tracks?: unknown;
@@ -304,6 +307,10 @@ function parseTrackPayload(raw: string): SoundtrackManifest {
     };
 
     if (json && typeof json === "object") {
+      if (isSoundtrackManifest(json)) {
+        return normalizeManifestForPlayback(json);
+      }
+
       let playlists = normalizePlaylists(json.playlists);
       playlists = mergePlaylistMap(playlists, normalizePlaylists(json.tracksByCategory));
 
@@ -426,6 +433,7 @@ function writeCachedManifest(source: string, manifest: SoundtrackManifest): void
       source,
       manifest,
       cachedAt: Date.now(),
+      normalized: true,
     };
     window.localStorage.setItem(SOUNDTRACK_CACHE_KEY, JSON.stringify(payload));
   } catch {
@@ -457,9 +465,12 @@ function normalizeManifestForPlayback(manifest: SoundtrackManifest): SoundtrackM
 export async function loadSoundtrackManifest(
   source = "/api/soundtrack",
 ): Promise<SoundtrackManifest> {
-  const loadFromUrl = async (requestSource: string): Promise<SoundtrackManifest> => {
+  const loadFromUrl = async (
+    requestSource: string,
+    cacheMode: RequestCache = "force-cache",
+  ): Promise<SoundtrackManifest> => {
     const response = await fetch(requestSource, {
-      cache: "force-cache",
+      cache: cacheMode,
       headers: { Accept: "application/json, text/plain;q=0.9" },
     });
 

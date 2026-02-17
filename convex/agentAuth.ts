@@ -261,11 +261,12 @@ export const agentJoinMatch = mutation({
       initialState: JSON.stringify(initialState),
     });
 
+    const mode = (meta as any).mode as "pvp" | "story";
     return {
       matchId: args.matchId,
-      hostId,
-      mode: (meta as any).mode as "pvp" | "story",
-      seat: "away",
+      hostId: String(hostId),
+      mode,
+      seat: "away" as const,
     };
   },
 });

@@ -45,8 +45,13 @@ type StoryContext = {
   rewardsXp: number;
   firstClearBonus: number;
   opponentName: string;
+  preMatchDialogue: DialogueLine[];
   postMatchWinDialogue: DialogueLine[];
   postMatchLoseDialogue: DialogueLine[];
+};
+
+type Stage = {
+  stageNumber: number;
 };
 
 type StoryMatchEnd = {

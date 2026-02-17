@@ -4,7 +4,6 @@ import {
   internalMutation,
   mutation,
   query,
-  type MutationCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireUser } from "./auth";
@@ -15,9 +14,9 @@ import { createInitialState, DEFAULT_CONFIG, buildCardLookup } from "@lunchtable
 import type { Command } from "@lunchtable-tcg/engine";
 import { DECK_RECIPES, STARTER_DECKS } from "./cardData";
 
-const cards = new LTCGCards(components.lunchtable_tcg_cards);
-const match = new LTCGMatch(components.lunchtable_tcg_match);
-const story = new LTCGStory(components.lunchtable_tcg_story);
+const cards: any = new LTCGCards(components.lunchtable_tcg_cards as any);
+const match: any = new LTCGMatch(components.lunchtable_tcg_match as any);
+const story: any = new LTCGStory(components.lunchtable_tcg_story as any);
 
 const RESERVED_DECK_IDS = new Set(["undefined", "null", "skip"]);
 const normalizeDeckId = (deckId: string | undefined): string | null => {
@@ -30,126 +29,6 @@ const normalizeDeckId = (deckId: string | undefined): string | null => {
 
 const normalizeDeckRecordId = (deckRecord?: { deckId?: string } | null) =>
   normalizeDeckId(deckRecord?.deckId);
-
-type UserDeckLike = {
-  deckId?: string;
-  deckArchetype?: string;
-};
-
-type DeckCard = {
-  cardDefinitionId: string;
-  quantity?: number;
-};
-
-type DeckWithCards = {
-  cards?: DeckCard[];
-};
-
-type UserDeckSummary = {
-  deckId: string;
-  name: string;
-  deckArchetype?: string;
-  cardCount?: number;
-};
-
-type CardRecord = {
-  _id: string;
-  name: string;
-  cardType?: string;
-  cardDefinitionId?: string;
-  type?: string;
-  quantity?: number;
-  isActive?: boolean;
-  attack?: number;
-  level?: number;
-  temporaryBoosts?: { attack?: number };
-};
-
-type GameCardInstance = {
-  cardId: string;
-  definitionId: string;
-  faceDown?: boolean;
-  canAttack?: boolean;
-  hasAttackedThisTurn?: boolean;
-  turnSummoned?: number;
-};
-
-type MatchEvent = { type?: string; [key: string]: unknown };
-
-type MatchSubmissionResult = {
-  events?: string;
-};
-
-type MatchMetaRecord = {
-  status?: "waiting" | "active" | "ended";
-  hostId?: string;
-  awayId?: string;
-  winner?: "host" | "away" | null;
-  isAIOpponent?: boolean;
-};
-
-type OpenPromptCard = {
-  cardId: string;
-  definitionId: string;
-  faceDown?: boolean;
-  canAttack?: boolean;
-  hasAttackedThisTurn?: boolean;
-};
-
-type MatchViewRecord = {
-  board?: GameCardInstance[];
-  spellTrapZone?: OpenPromptCard[];
-  opponentBoard?: GameCardInstance[];
-  opponentSpellTrapZone?: OpenPromptCard[];
-  currentPhase?: string;
-  currentTurnPlayer?: string;
-  hand?: string[];
-  turnNumber?: number;
-  gameOver?: boolean;
-  players?: {
-    host?: { lifePoints?: number };
-    away?: { lifePoints?: number };
-  };
-  currentChain?: unknown[];
-};
-
-type StoryMatchDoc = {
-  _id: string;
-  matchId: string;
-  userId: string;
-  chapterId: string;
-  stageNumber: number;
-  stageId: string;
-  outcome?: "won" | "lost" | "abandoned" | null;
-  starsEarned?: number;
-  rewardsGold?: number;
-  rewardsXp?: number;
-  firstClearBonus?: number;
-};
-
-type StoryStage = {
-  _id: string;
-  stageNumber: number;
-  preMatchDialogue?: unknown;
-  postMatchWinDialogue?: unknown;
-  postMatchLoseDialogue?: unknown;
-  rewardGold?: unknown;
-  rewardXp?: unknown;
-  firstClearBonus?: unknown;
-  opponentName?: string;
-};
-
-const autoAssignCliqueFromArchetype = async (
-  ctx: MutationCtx,
-  userId: string,
-  archetype: string,
-) => {
-  if (!archetype) return;
-  await ctx.runMutation(internal.cliques.autoAssignUserToCliqueFromArchetype, {
-    userId,
-    archetype,
-  });
-};
 
 const resolveDefaultStarterDeckCode = () => {
   const configured = STARTER_DECKS.find((deck) => DECK_RECIPES[deck.deckCode]);
@@ -198,6 +77,29 @@ const createStarterDeckFromRecipe = async (ctx: any, userId: string) => {
   return deckId;
 };
 
+function resolveDeckCards(
+  allCards: any[],
+  recipe: Array<{ cardName: string; copies: number }>,
+): { cardDefinitionId: string; quantity: number }[] {
+  const byName = new Map<string, any>();
+  for (const card of allCards ?? []) {
+    if (typeof card?.name === "string") {
+      byName.set(card.name, card);
+    }
+  }
+
+  const resolved: { cardDefinitionId: string; quantity: number }[] = [];
+  for (const entry of recipe) {
+    const cardDef = byName.get(entry.cardName);
+    if (!cardDef?._id) continue;
+    resolved.push({
+      cardDefinitionId: String(cardDef._id),
+      quantity: Number(entry.copies ?? 0),
+    });
+  }
+  return resolved.filter((entry) => entry.quantity > 0);
+}
+
 async function resolveActiveDeckIdForUser(
   ctx: any,
   user: { _id: string; activeDeckId?: string },
@@ -212,7 +114,8 @@ async function resolveActiveDeckIdForUser(
       )
     : null;
 
-  const firstDeckId = activeDecks?.map(normalizeDeckRecordId).find((id) => Boolean(id)) ?? null;
+  const firstDeckId =
+    activeDecks?.map(normalizeDeckRecordId).find((id: string | null) => Boolean(id)) ?? null;
 
   const fallbackDeckId = preferredDeckId ?? firstDeckId;
   if (!fallbackDeckId) {
@@ -543,7 +446,7 @@ export async function assertStoryStageUnlocked(
   chapterId: string,
   stageNumber: number,
 ) {
-  const chapter = await story.chapters.getChapter(ctx, { chapterId: chapterId as any });
+  const chapter = await story.chapters.getChapter(ctx, chapterId as any);
   if (!chapter) {
     throw new Error("Chapter not found");
   }
@@ -578,18 +481,17 @@ export async function assertStoryStageUnlocked(
       (unlockRequirements.previousChapter && chapterIndex > 0 ? sortedChapters[chapterIndex - 1]?._id : "");
 
     if (requiredChapterId) {
-      const requiredChapter = await story.chapters.getChapter(ctx, {
-        chapterId: requiredChapterId,
-      });
+      const requiredChapter = await story.chapters.getChapter(ctx, requiredChapterId);
       if (!requiredChapter) {
         throw new Error("Required chapter not found");
       }
 
-      const requiredChapterProgress = await story.progress.getChapterProgress(ctx, {
+      const requiredChapterProgress = await story.progress.getChapterProgress(
+        ctx,
         userId,
-        actNumber: requiredChapter.actNumber ?? 0,
-        chapterNumber: requiredChapter.chapterNumber ?? 0,
-      });
+        requiredChapter.actNumber ?? 0,
+        requiredChapter.chapterNumber ?? 0,
+      );
       if (!isChapterProgressCompleted(requiredChapterProgress)) {
         throw new Error("Previous chapter must be completed first");
       }
@@ -612,11 +514,12 @@ export async function assertStoryStageUnlocked(
     }
   }
 
-  const existingProgress = await story.progress.getChapterProgress(ctx, {
+  const existingProgress = await story.progress.getChapterProgress(
+    ctx,
     userId,
-    actNumber: chapter.actNumber ?? 0,
-    chapterNumber: chapter.chapterNumber ?? 0,
-  });
+    chapter.actNumber ?? 0,
+    chapter.chapterNumber ?? 0,
+  );
 
   await story.progress.upsertProgress(ctx, {
     userId,
@@ -641,11 +544,12 @@ async function markStoryChapterProgress(
   chapter: any,
   isCompleted: boolean,
 ) {
-  const existingProgress = await story.progress.getChapterProgress(ctx, {
+  const existingProgress = await story.progress.getChapterProgress(
+    ctx,
     userId,
-    actNumber: chapter.actNumber ?? 0,
-    chapterNumber: chapter.chapterNumber ?? 0,
-  });
+    chapter.actNumber ?? 0,
+    chapter.chapterNumber ?? 0,
+  );
 
   const newStatus = isCompleted
     ? "completed"
@@ -834,7 +738,7 @@ export const cancelWaitingStoryMatch = mutation({
       throw new Error("Cannot cancel match after an away player has joined.");
     }
 
-    await ctx.db.patch(meta._id, {
+    await (ctx.db.patch as any)((meta as any)._id, {
       status: "ended",
       endReason: "host_canceled",
       endedAt: Date.now(),
@@ -851,7 +755,12 @@ export const cancelWaitingStoryMatch = mutation({
       });
     }
 
-    return { matchId: args.matchId, canceled: true, status: "ended", outcome: "abandoned" };
+    return {
+      matchId: args.matchId,
+      canceled: true,
+      status: "ended" as const,
+      outcome: "abandoned" as const,
+    };
   },
 });
 
@@ -1218,7 +1127,7 @@ export const getStoryMatchContext = query({
 
     // Load the stage data for dialogue and reward info
     let stage = doc.stageId
-      ? await story.stages.getStage(ctx, { stageId: doc.stageId as any })
+      ? await story.stages.getStage(ctx, doc.stageId as any)
       : null;
     if (!stage) {
       const stages = await story.stages.getStages(ctx, doc.chapterId);
@@ -1257,7 +1166,7 @@ function calculateStars(won: boolean, finalLP: number, maxLP: number): number {
 export const completeStoryStage = mutation({
   args: {
     matchId: v.string(),
-    actorUserId: v.optional(v.string()),
+    actorUserId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
     const requester = args.actorUserId
@@ -1357,18 +1266,17 @@ export const completeStoryStage = mutation({
     const rewardGold = won ? (stage.rewardGold ?? 0) : 0;
     const rewardXp = won ? (stage.rewardXp ?? 0) : 0;
 
-    const chapter = await story.chapters.getChapter(ctx, {
-      chapterId: storyMatch.chapterId as any,
-    });
+    const chapter = await story.chapters.getChapter(ctx, storyMatch.chapterId as any);
     if (!chapter) {
       throw new Error("Chapter not found");
     }
 
-    const chapterProgress = await story.progress.getChapterProgress(ctx, {
-      userId: progressOwnerId,
-      actNumber: chapter.actNumber ?? 0,
-      chapterNumber: chapter.chapterNumber ?? 0,
-    });
+    const chapterProgress = await story.progress.getChapterProgress(
+      ctx,
+      progressOwnerId,
+      chapter.actNumber ?? 0,
+      chapter.chapterNumber ?? 0,
+    );
     const chapterProgressId =
       chapterProgress?._id ??
       (await story.progress.upsertProgress(ctx, {

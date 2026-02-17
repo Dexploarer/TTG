@@ -78,8 +78,9 @@ export function GameBoard({ matchId, seat, onMatchEnd }: GameBoardProps) {
         : typeof chainData.opponentDefinitionId === "string"
           ? chainData.opponentDefinitionId
           : undefined;
-    if (directDefId && cardLookup[directDefId]) {
-      return cardLookup[directDefId].name ?? "Opponent Card";
+    if (directDefId) {
+      const definition = cardLookup[directDefId];
+      if (definition) return definition.name ?? "Opponent Card";
     }
 
     const directCardId =
@@ -92,8 +93,9 @@ export function GameBoard({ matchId, seat, onMatchEnd }: GameBoardProps) {
       const opponentCard =
         view?.opponentBoard?.find((c: any) => c.cardId === directCardId) ??
         view?.opponentSpellTrapZone?.find((c: any) => c.cardId === directCardId);
-      if (opponentCard?.definitionId && cardLookup[opponentCard.definitionId]) {
-        return cardLookup[opponentCard.definitionId].name ?? "Opponent Card";
+      if (opponentCard?.definitionId) {
+        const definition = cardLookup[opponentCard.definitionId];
+        if (definition) return definition.name ?? "Opponent Card";
       }
     }
 
@@ -629,7 +631,11 @@ export function GameBoard({ matchId, seat, onMatchEnd }: GameBoardProps) {
       {/* Tribute Selector */}
       {showTributeSelector && (
         <TributeSelector
-          board={playerBoard}
+          board={playerBoard.map((card) => ({
+            cardId: card.cardId,
+            definitionId: card.definitionId,
+            faceDown: Boolean(card.faceDown),
+          }))}
           cardLookup={cardLookup}
           requiredCount={1}
           onConfirm={handleTributeConfirm}
@@ -648,7 +654,12 @@ export function GameBoard({ matchId, seat, onMatchEnd }: GameBoardProps) {
         const attackerAtk = (attackerDef?.attack ?? 0) + (attackerCard?.temporaryBoosts?.attack ?? 0);
         const opponentTargets = opponentBoard
           .filter((c: any) => targets.includes(c.cardId))
-          .map((c: any) => ({ cardId: c.cardId, definitionId: c.definitionId, faceDown: c.faceDown, position: c.position ?? "attack" }));
+          .map((c: any) => ({
+            cardId: c.cardId,
+            definitionId: c.definitionId,
+            faceDown: Boolean(c.faceDown),
+            position: c.position ?? "attack",
+          }));
         const canDirectAttack = targets.includes("");
         return (
           <AttackTargetSelector

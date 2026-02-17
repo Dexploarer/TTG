@@ -6,7 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { requireUser } from "./auth";
 import { LTCGCards } from "@lunchtable-tcg/cards";
 
-const cards = new LTCGCards(components.lunchtable_tcg_cards);
+const cards = new LTCGCards(components.lunchtable_tcg_cards as any);
 
 const RESERVED_DECK_IDS = new Set(["undefined", "null", "skip"]);
 const ARCHETYPE_ALIASES: Record<string, string> = {
@@ -286,11 +286,11 @@ const assignUserToCliqueByArchetype = async (
   return clique;
 };
 
-const mapAssignmentResult = (
-  status: AssignedCliqueResult["status"],
-  data: Omit<AssignedCliqueResult, "status" | "clique"> & { clique: CliqueDoc | null },
-): AssignedCliqueResult => {
-  return { status, ...data };
+const mapAssignmentResult = <TStatus extends AssignedCliqueResult["status"]>(
+  status: TStatus,
+  data: Omit<Extract<AssignedCliqueResult, { status: TStatus }>, "status">,
+): Extract<AssignedCliqueResult, { status: TStatus }> => {
+  return { status, ...data } as Extract<AssignedCliqueResult, { status: TStatus }>;
 };
 
 export const getAllCliques = query({
@@ -543,29 +543,26 @@ export const ensureMyCliqueAssignment = mutation({
 
     const archetype = await resolveUserStarterArchetype(ctx, user);
     if (!archetype) {
-      return {
-      status: "missing_starter_deck",
+      return mapAssignmentResult("missing_starter_deck", {
         clique: null,
         archetype: null,
         reason: "Starter deck missing or unable to determine archetype",
-      };
+      });
     }
 
     const clique = await assignUserToCliqueByArchetype(ctx, user._id, archetype);
     if (!clique) {
-      return {
-        status: "missing_clique",
+      return mapAssignmentResult("missing_clique", {
         clique: null,
         archetype,
         reason: `No clique exists for archetype ${archetype}`,
-      };
+      });
     }
 
-    return {
-      status: "assigned",
+    return mapAssignmentResult("assigned", {
       clique,
       archetype,
       reason: "Assigned from starter deck archetype",
-    };
+    });
   },
 });

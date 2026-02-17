@@ -61,6 +61,7 @@ export function useGameState(matchId: string | undefined, seat: Seat) {
   const phase = view?.currentPhase ?? "draw";
   const gameOver = view?.gameOver ?? false;
   const isChainWindow = (view?.currentChain?.length ?? 0) > 0;
+  const isWaitingForInitialSnapshot = Boolean(matchId && viewJson === undefined);
 
   const validActions = useMemo(() => {
     const va: ValidActions = {
@@ -78,10 +79,10 @@ export function useGameState(matchId: string | undefined, seat: Seat) {
     if (!isChainWindow && !isMyTurn) return va;
 
     const isMainPhase = phase === "main" || phase === "main2";
-    const board = view.board;
-    const hand = view.hand;
-    const stZone = view.spellTrapZone;
-    const opponentBoard = view.opponentBoard;
+    const board = view.board ?? [];
+    const hand = view.hand ?? [];
+    const stZone = view.spellTrapZone ?? [];
+    const opponentBoard = view.opponentBoard ?? [];
 
     if (isMainPhase) {
       if (board.length < 5) {
@@ -124,7 +125,8 @@ export function useGameState(matchId: string | undefined, seat: Seat) {
       }
 
       for (const boardCard of board) {
-        if (boardCard.faceDown && boardCard.turnSummoned < view.turnNumber) {
+        const turnSummoned = boardCard.turnSummoned ?? 0;
+        if (boardCard.faceDown && turnSummoned < view.turnNumber) {
           va.canFlipSummon.add(boardCard.cardId);
         }
       }

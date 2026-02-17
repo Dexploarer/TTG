@@ -7,6 +7,8 @@ import {
 import { api } from "../../../../convex/_generated/api";
 import type { DefaultFunctionArgs, FunctionReference } from "convex/server";
 
+export { api };
+
 export const convex = {
   api,
 } as const;
