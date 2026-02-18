@@ -2,18 +2,19 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { createInitialRuntimeState } from "@gambit/effect-engine";
 import { createDiffPreview } from "@gambit/csv-pipeline/src/diff";
+import type { CardDefinition } from "@gambit/template-schema";
 import { nextVersion, nowTs } from "./_helpers";
 import { validateCardDefinitionLite } from "./_validators";
 
 export const upsertBatch = mutation({
   args: { cards: v.array(v.any()) },
   handler: async (ctx, args) => {
-    const results: Array<{ value: unknown; version: number; updatedAt: number }> = [];
+    const results: Array<{ value: CardDefinition; version: number; updatedAt: number }> = [];
 
     for (const rawCard of args.cards) {
       const validation = validateCardDefinitionLite(rawCard);
       if (!validation.ok || !validation.value) {
-        throw new Error(`Card validation failed: ${validation.issues.map((i) => i.message).join(", ")}`);
+        throw new Error(`Card validation failed: ${validation.issues.join(", ")}`);
       }
 
       const card = validation.value;
@@ -79,7 +80,22 @@ export const diffPreview = query({
   args: { cards: v.array(v.any()) },
   handler: async (ctx, args) => {
     const existing = await ctx.db.query("cards").collect();
-    const existingMap = new Map(existing.map((record) => [record.cardId, record.data]));
-    return createDiffPreview(args.cards as any[], existingMap as Map<string, any>);
+    const existingMap = new Map<string, CardDefinition>();
+    for (const record of existing) {
+      const check = validateCardDefinitionLite(record.data);
+      if (check.ok && check.value) {
+        existingMap.set(record.cardId, check.value);
+      }
+    }
+
+    const incoming: CardDefinition[] = [];
+    for (const rawCard of args.cards) {
+      const check = validateCardDefinitionLite(rawCard);
+      if (check.ok && check.value) {
+        incoming.push(check.value);
+      }
+    }
+
+    return createDiffPreview(incoming, existingMap);
   }
 });

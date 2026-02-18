@@ -7,31 +7,32 @@ export const create = mutation({
   args: { manifest: v.any() },
   handler: async (ctx, args) => {
     const validation = validateTemplateManifestLite(args.manifest);
-    if (!validation.ok || !validation.value) {
-      throw new Error(`Template validation failed: ${validation.issues.map((i) => i.message).join(", ")}`);
+    const manifest = validation.value;
+    if (!validation.ok || !manifest) {
+      throw new Error(`Template validation failed: ${validation.issues.join(", ")}`);
     }
 
     const existing = await ctx.db
       .query("templates")
-      .withIndex("by_template_id", (q) => q.eq("templateId", validation.value.templateId))
+      .withIndex("by_template_id", (q) => q.eq("templateId", manifest.templateId))
       .unique();
 
     if (existing) {
-      throw new Error(`Template already exists: ${validation.value.templateId}`);
+      throw new Error(`Template already exists: ${manifest.templateId}`);
     }
 
     const version = nextVersion(undefined);
     const updatedAt = nowTs();
 
     await ctx.db.insert("templates", {
-      templateId: validation.value.templateId,
-      manifest: validation.value,
+      templateId: manifest.templateId,
+      manifest,
       version,
       updatedAt
     });
 
     return {
-      value: validation.value,
+      value: manifest,
       version,
       updatedAt
     };
@@ -45,8 +46,9 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     const validation = validateTemplateManifestLite(args.manifest);
-    if (!validation.ok || !validation.value) {
-      throw new Error(`Template validation failed: ${validation.issues.map((i) => i.message).join(", ")}`);
+    const manifest = validation.value;
+    if (!validation.ok || !manifest) {
+      throw new Error(`Template validation failed: ${validation.issues.join(", ")}`);
     }
 
     const existing = await ctx.db
@@ -62,13 +64,13 @@ export const update = mutation({
     const updatedAt = nowTs();
 
     await ctx.db.patch(existing._id, {
-      manifest: validation.value,
+      manifest,
       version,
       updatedAt
     });
 
     return {
-      value: validation.value,
+      value: manifest,
       version,
       updatedAt
     };
