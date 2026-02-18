@@ -12,6 +12,7 @@
     "test": "bash ./scripts/test-all.sh",
     "test:once": "bun run test",
     "typecheck": "bash ./scripts/typecheck-all.sh",
+    "smoke:export": "bun run scripts/smoke-export.ts",
     "studio:dev": "bun run --cwd apps/studio dev",
     "render-worker:dev": "bun run --cwd apps/render-worker dev",
     "convex:dev": "convex dev",

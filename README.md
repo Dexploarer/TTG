@@ -46,6 +46,14 @@ Render-worker daemon (any `.env.local` that `apps/render-worker` can read, e.g. 
 CONVEX_URL=...
 ```
 
+### Smoke Test (Export Pipeline)
+
+With `convex:dev` and `render-worker:dev` running (daemon enabled), this enqueues a render job and waits for a PNG URL:
+
+```bash
+CONVEX_URL=... bun run smoke:export
+```
+
 ## AI Provider Environment
 
 Configure these environment variables before using the Studio AI Workshop tab:
