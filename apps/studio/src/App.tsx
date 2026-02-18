@@ -6,10 +6,11 @@ import { CsvImportConsole } from "./components/CsvImportConsole";
 import { EffectSimulator } from "./components/EffectSimulator";
 import { ExportCenter } from "./components/ExportCenter";
 import { CardPreview } from "./components/CardPreview";
+import { AiWorkshop } from "./components/AiWorkshop";
 
 ensureSeedData();
 
-type View = "template" | "catalog" | "csv" | "effects" | "export";
+type View = "template" | "catalog" | "csv" | "effects" | "export" | "ai";
 
 export function App() {
   const [view, setView] = useState<View>("template");
@@ -26,6 +27,8 @@ export function App() {
         return <EffectSimulator />;
       case "export":
         return <ExportCenter />;
+      case "ai":
+        return <AiWorkshop />;
       default:
         return null;
     }
@@ -43,6 +46,7 @@ export function App() {
           <button className={`nav-btn ${view === "csv" ? "active" : ""}`} onClick={() => setView("csv")}>CSV Import</button>
           <button className={`nav-btn ${view === "effects" ? "active" : ""}`} onClick={() => setView("effects")}>Effect Simulator</button>
           <button className={`nav-btn ${view === "export" ? "active" : ""}`} onClick={() => setView("export")}>Export Center</button>
+          <button className={`nav-btn ${view === "ai" ? "active" : ""}`} onClick={() => setView("ai")}>AI Workshop</button>
         </div>
       </aside>
 

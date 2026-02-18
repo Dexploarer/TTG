@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gambit/ai-orchestrator": "workspace:*",
     "@gambit/card-renderer": "workspace:*",
     "@gambit/template-schema": "workspace:*",
     "@gambit/effect-engine": "workspace:*",
