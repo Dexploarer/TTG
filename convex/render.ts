@@ -2,82 +2,119 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { jobId, nowTs } from "./_helpers";
 
-async function createRenderJob(ctx: any, cardIds: string[]) {
-  const id = jobId("job");
-  const createdAt = nowTs();
-
-  const outputs: Array<{ cardId: string; pngPath: string; manifestPath: string }> = [];
-
-  for (const cardId of cardIds) {
-    const card = await ctx.db
-      .query("cards")
-      .withIndex("by_card_id", (q: any) => q.eq("cardId", cardId))
-      .unique();
-    if (!card) {
-      throw new Error(`Card not found: ${cardId}`);
-    }
-
-    const template = await ctx.db
-      .query("templates")
-      .withIndex("by_template_id", (q: any) => q.eq("templateId", card.data.templateId))
-      .unique();
-    if (!template) {
-      throw new Error(`Template not found: ${card.data.templateId}`);
-    }
-
-    const pngPath = `/exports/${cardId}.png`;
-    const manifestPath = `/exports/${cardId}.json`;
-
-    const existingExport = await ctx.db
-      .query("exports")
-      .withIndex("by_card_id", (q: any) => q.eq("cardId", cardId))
-      .unique();
-
-    const exportPayload = {
-      cardId,
-      templateVersion: template.version,
-      cardVersion: card.version,
-      artVersion: 1,
-      pngPath,
-      updatedAt: nowTs()
-    };
-
-    if (existingExport) {
-      await ctx.db.patch(existingExport._id, exportPayload);
-    } else {
-      await ctx.db.insert("exports", exportPayload);
-    }
-
-    outputs.push({ cardId, pngPath, manifestPath });
-  }
-
-  await ctx.db.insert("renderJobs", {
-    jobId: id,
-    status: "succeeded",
-    cardIds,
-    outputs,
-    createdAt,
-    completedAt: nowTs()
-  });
-
-  return {
-    jobId: id,
-    status: "succeeded" as const,
-    cardIds,
-    outputs,
-    createdAt,
-    completedAt: nowTs()
-  };
-}
-
 export const enqueueCard = mutation({
   args: { cardId: v.string() },
-  handler: async (ctx, args) => createRenderJob(ctx, [args.cardId])
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("cards")
+      .withIndex("by_card_id", (q) => q.eq("cardId", args.cardId))
+      .unique();
+    if (!existing) {
+      throw new Error(`Card not found: ${args.cardId}`);
+    }
+
+    const createdAt = nowTs();
+    const record = {
+      jobId: jobId("job"),
+      status: "queued" as const,
+      cardIds: [args.cardId],
+      outputs: [],
+      createdAt
+    };
+    await ctx.db.insert("renderJobs", record);
+    return record;
+  }
 });
 
 export const enqueueBatch = mutation({
   args: { cardIds: v.array(v.string()) },
-  handler: async (ctx, args) => createRenderJob(ctx, args.cardIds)
+  handler: async (ctx, args) => {
+    if (args.cardIds.length === 0) {
+      throw new Error("cardIds is required");
+    }
+
+    for (const cardId of args.cardIds) {
+      const existing = await ctx.db
+        .query("cards")
+        .withIndex("by_card_id", (q) => q.eq("cardId", cardId))
+        .unique();
+      if (!existing) {
+        throw new Error(`Card not found: ${cardId}`);
+      }
+    }
+
+    const createdAt = nowTs();
+    const record = {
+      jobId: jobId("job"),
+      status: "queued" as const,
+      cardIds: args.cardIds,
+      outputs: [],
+      createdAt
+    };
+    await ctx.db.insert("renderJobs", record);
+    return record;
+  }
+});
+
+export const claimNextJob = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const next = await ctx.db
+      .query("renderJobs")
+      .withIndex("by_status_createdAt", (q) => q.eq("status", "queued"))
+      .order("asc")
+      .first();
+
+    if (!next) return null;
+
+    await ctx.db.patch(next._id, { status: "running" as const });
+    return {
+      jobId: next.jobId,
+      status: "running" as const,
+      cardIds: next.cardIds,
+      outputs: next.outputs,
+      createdAt: next.createdAt
+    };
+  }
+});
+
+export const completeJob = mutation({
+  args: {
+    jobId: v.string(),
+    outputs: v.array(v.any()),
+    error: v.optional(v.string())
+  },
+  handler: async (ctx, args) => {
+    const record = await ctx.db
+      .query("renderJobs")
+      .withIndex("by_job_id", (q) => q.eq("jobId", args.jobId))
+      .unique();
+
+    if (!record) {
+      throw new Error(`render job not found: ${args.jobId}`);
+    }
+
+    const completedAt = nowTs();
+    const status = args.error ? ("failed" as const) : ("succeeded" as const);
+    const error = args.error?.slice(0, 2000);
+
+    await ctx.db.patch(record._id, {
+      status,
+      outputs: args.outputs,
+      completedAt,
+      error
+    });
+
+    return {
+      jobId: record.jobId,
+      status,
+      cardIds: record.cardIds,
+      outputs: args.outputs,
+      createdAt: record.createdAt,
+      completedAt,
+      error
+    };
+  }
 });
 
 export const getJob = query({
@@ -89,3 +126,4 @@ export const getJob = query({
       .unique();
   }
 });
+

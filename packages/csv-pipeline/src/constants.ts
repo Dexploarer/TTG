@@ -21,3 +21,20 @@ export const OPTIONAL_CARD_COLUMNS = [
   "tags",
   "status"
 ] as const;
+
+export const REQUIRED_EFFECT_COLUMNS = ["effect_id", "effect_json"] as const;
+
+export const OPTIONAL_EFFECT_COLUMNS = [] as const;
+
+export const REQUIRED_ART_COLUMNS = ["art_asset_id", "source_mode"] as const;
+
+export const OPTIONAL_ART_COLUMNS = [
+  "source_uri",
+  "prompt",
+  "style_id",
+  "rights_tier",
+  "version",
+  "provider",
+  "width",
+  "height"
+] as const;

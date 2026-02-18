@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDiffPreview, normalizeCardRows, parseCardsCsv } from "../src";
+import { createDiffPreview, normalizeCardRows, parseArtCsv, parseCardsCsv, parseEffectsCsv } from "../src";
 import type { CardDefinition } from "@gambit/template-schema";
 
 describe("csv pipeline", () => {
@@ -43,5 +43,29 @@ describe("csv pipeline", () => {
     expect(diff.inserts).toHaveLength(0);
     expect(diff.updates).toHaveLength(1);
     expect(diff.unchanged).toHaveLength(0);
+  });
+
+  it("parses effects csv and validates JSON", () => {
+    const csv = ["effect_id,effect_json", 'boost,"{""effectId"":""boost"",""triggers"":[]}"'].join("\n");
+    const parsed = parseEffectsCsv(csv);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.rows[0]?.effect_id).toBe("boost");
+
+    const bad = ["effect_id,effect_json", 'oops,"{""not"":""json"""'].join("\n");
+    const badParsed = parseEffectsCsv(bad);
+    expect(badParsed.ok).toBe(false);
+    expect(badParsed.issues.some((issue) => issue.column === "effect_json" && issue.severity === "error")).toBe(true);
+  });
+
+  it("parses art csv and validates source_mode", () => {
+    const csv = ["art_asset_id,source_mode,source_uri", "art-1,external,https://example.com/a.png"].join("\n");
+    const parsed = parseArtCsv(csv);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.rows[0]?.art_asset_id).toBe("art-1");
+
+    const bad = ["art_asset_id,source_mode", "art-2,broken"].join("\n");
+    const badParsed = parseArtCsv(bad);
+    expect(badParsed.ok).toBe(false);
+    expect(badParsed.issues.some((issue) => issue.column === "source_mode" && issue.severity === "error")).toBe(true);
   });
 });

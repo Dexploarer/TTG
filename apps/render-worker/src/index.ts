@@ -1,6 +1,8 @@
 import { createAiOrchestrator } from "@gambit/ai-orchestrator";
 import type { CardType } from "@gambit/template-schema";
-import { renderCardToPng } from "./renderer";
+import { renderCardToPngBytes } from "./renderer";
+import { loadDotEnvLocal } from "./env";
+import { RenderDaemon } from "./daemon";
 
 declare const Bun: {
   serve: (options: {
@@ -9,8 +11,18 @@ declare const Bun: {
   }) => { port: number };
 };
 
+loadDotEnvLocal();
+
 const port = Number(process.env.PORT ?? 8788);
+
 const aiOrchestrator = createAiOrchestrator();
+const convexUrl = process.env.CONVEX_URL ?? process.env.VITE_CONVEX_URL ?? null;
+
+const daemon = convexUrl ? new RenderDaemon({ convexUrl }) : null;
+if (daemon) {
+  // Run in the background; failures surface via /health.
+  void daemon.runForever();
+}
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -55,15 +67,25 @@ const server = Bun.serve({
       return jsonResponse({
         ok: true,
         service: "render-worker",
-        ai: aiOrchestrator.getProviderStatus()
+        ai: aiOrchestrator.getProviderStatus(),
+        daemon: {
+          enabled: Boolean(daemon),
+          lastError: daemon?.lastError ?? null
+        }
       });
     }
 
     if (request.method === "POST" && pathname === "/render") {
       try {
         const payload = await request.json();
-        const result = await renderCardToPng(payload);
-        return jsonResponse({ ok: true, result });
+        const result = await renderCardToPngBytes(payload);
+        return jsonResponse({
+          ok: true,
+          result: {
+            pngBase64: Buffer.from(result.pngBytes).toString("base64"),
+            manifest: result.manifest
+          }
+        });
       } catch (error) {
         return jsonResponse(
           { ok: false, error: error instanceof Error ? error.message : String(error) },

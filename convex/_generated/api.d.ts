@@ -11,12 +11,15 @@
 import type * as _helpers from "../_helpers.js";
 import type * as _runtimeCore from "../_runtimeCore.js";
 import type * as _validators from "../_validators.js";
+import type * as art from "../art.js";
 import type * as cards from "../cards.js";
 import type * as effects from "../effects.js";
 import type * as exports from "../exports.js";
+import type * as files from "../files.js";
 import type * as imports from "../imports.js";
 import type * as render from "../render.js";
 import type * as runtime from "../runtime.js";
+import type * as seed from "../seed.js";
 import type * as templates from "../templates.js";
 
 import type {
@@ -29,12 +32,15 @@ declare const fullApi: ApiFromModules<{
   _helpers: typeof _helpers;
   _runtimeCore: typeof _runtimeCore;
   _validators: typeof _validators;
+  art: typeof art;
   cards: typeof cards;
   effects: typeof effects;
   exports: typeof exports;
+  files: typeof files;
   imports: typeof imports;
   render: typeof render;
   runtime: typeof runtime;
+  seed: typeof seed;
   templates: typeof templates;
 }>;
 

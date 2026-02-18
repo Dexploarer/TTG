@@ -37,13 +37,14 @@ export const upsertBatch = mutation({
         .withIndex("by_card_id", (q) => q.eq("cardId", card.cardId))
         .unique();
 
+      const nextRuntime = createInitialRuntimeState({ cardId: card.cardId, baseStats: card.baseStats });
       if (!runtime) {
-        await ctx.db.insert("runtime", {
-          cardId: card.cardId,
-          state: createInitialRuntimeState({ cardId: card.cardId, baseStats: card.baseStats }),
-          appliedEffects: [],
-          updatedAt
-        });
+        await ctx.db.insert("runtime", { cardId: card.cardId, state: nextRuntime, appliedEffects: [], updatedAt });
+      } else {
+        const baseStatsChanged = JSON.stringify(runtime.state?.baseStats ?? {}) !== JSON.stringify(nextRuntime.baseStats);
+        if (baseStatsChanged) {
+          await ctx.db.patch(runtime._id, { state: nextRuntime, appliedEffects: [], updatedAt });
+        }
       }
 
       results.push({ value: card, version, updatedAt });

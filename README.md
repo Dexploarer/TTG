@@ -24,8 +24,26 @@ A from-scratch vertical slice for a high-fidelity trading card generator:
 ```bash
 bun install
 bun run test
+bun run convex:dev
+# In another terminal, set VITE_CONVEX_URL + VITE_RENDER_WORKER_URL for Studio
 bun run studio:dev
+# In another terminal, set CONVEX_URL (or VITE_CONVEX_URL) for the render-worker daemon
 bun run render-worker:dev
+```
+
+### Required Env (Local Dev)
+
+Studio (`/Users/home/gambit/Gambit/apps/studio/.env.local`):
+
+```bash
+VITE_CONVEX_URL=...
+VITE_RENDER_WORKER_URL=http://localhost:8788
+```
+
+Render-worker daemon (any `.env.local` that `apps/render-worker` can read, e.g. `/Users/home/gambit/Gambit/.env.local`):
+
+```bash
+CONVEX_URL=...
 ```
 
 ## AI Provider Environment
@@ -36,12 +54,6 @@ Configure these environment variables before using the Studio AI Workshop tab:
 OPENROUTER_API_KEY=...
 AI_GATEWAY_API_KEY=...
 FAL_KEY=...
-```
-
-Optional:
-
-```bash
-VITE_RENDER_WORKER_URL=http://localhost:8788
 ```
 
 ## Logo Asset

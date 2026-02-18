@@ -37,6 +37,26 @@ export interface CardCsvRow {
   status?: string;
 }
 
+export interface EffectsCsvRow {
+  effect_id: string;
+  effect_json: string;
+}
+
+export type ArtSourceMode = "upload" | "external" | "ai_fal";
+
+export interface ArtCsvRow {
+  art_asset_id: string;
+  source_mode: ArtSourceMode;
+  source_uri?: string;
+  prompt?: string;
+  style_id?: string;
+  rights_tier?: string;
+  version?: string;
+  provider?: string;
+  width?: string;
+  height?: string;
+}
+
 export interface DiffPreview {
   inserts: CardDefinition[];
   updates: Array<{ before: CardDefinition; after: CardDefinition }>;
